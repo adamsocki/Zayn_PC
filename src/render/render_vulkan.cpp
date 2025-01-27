@@ -1593,28 +1593,28 @@ void GenerateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int3
 void CreateTextureImage(ZaynMemory* zaynMem, uint32_t& mipLevels, VkImage* textureImage, VkDeviceMemory* textureImageMemory, const std::string texturePath)
 {
   
-    int texWidth, texHeight, texChannels;
-    stbi_uc* pixels = stbi_load(texturePath.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-    VkDeviceSize imageSize = texWidth * texHeight * 4;
+    int texWidth, texHeight, texChannels; // added
+    stbi_uc* pixels = stbi_load(texturePath.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha); // added
+    VkDeviceSize imageSize = texWidth * texHeight * 4; // added
     mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
 
-    if (!pixels)
-    {
-        throw std::runtime_error("failed to load texture image!");
-    }
+    if (!pixels) // added
+    { // added
+        throw std::runtime_error("failed to load texture image!"); // added
+    } // added
 
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
+    VkBuffer stagingBuffer;    // added
+    VkDeviceMemory stagingBufferMemory; // added
 
     createBuffer(zaynMem, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
-    void* data;
-    vkMapMemory(zaynMem->vulkan.vkDevice, stagingBufferMemory, 0, imageSize, 0, &data);
-    memcpy(data, pixels, static_cast<size_t>(imageSize));
-    vkUnmapMemory(zaynMem->vulkan.vkDevice, stagingBufferMemory);
+    void* data;    // added
+    vkMapMemory(zaynMem->vulkan.vkDevice, stagingBufferMemory, 0, imageSize, 0, &data);    // added
+    memcpy(data, pixels, static_cast<size_t>(imageSize));    // added
+    vkUnmapMemory(zaynMem->vulkan.vkDevice, stagingBufferMemory);    // added
 
     stbi_image_free(pixels);
 
-    CreateImage(texWidth, texHeight, mipLevels, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, *textureImage, *textureImageMemory, Zayn);
+    CreateImage(texWidth, texHeight, mipLevels, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, *textureImage, *textureImageMemory, Zayn); // added
 
     // TransitionImageLayout(zaynMem->vkTextureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, zaynMem);
     TransitionImageLayout(zaynMem, *textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels);
@@ -1922,7 +1922,169 @@ void EndRender_Init(ZaynMemory* zaynMem)
     CreateCommandBuffers(zaynMem);
     CreateSyncObjects(zaynMem);
 }
- 
+
+
+
+// --- Texture --- 
+struct TextureCreateInfo 
+{
+    const char* path;
+    VkFormat format;
+    bool generateMipmaps;
+    VkFilter filter;
+    VkSamplerAddressMode addressMode;
+};
+
+struct Texture 
+{
+    VkImage image;
+    VkDeviceMemory memory;
+    VkImageView view;
+    VkSampler sampler;
+    uint32_t width;
+    uint32_t height;
+    uint32_t mipLevels = 1;
+};
+
+enum MaterialType
+{
+    MATERIAL_PBR,
+    MATERIAL_UNLIT
+};
+
+struct MaterialCreateInfo
+{
+    MaterialType type = MATERIAL_PBR;
+
+};
+
+struct Material
+{
+    MaterialType type;
+    VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
+    Texture* texture;
+    float color[4];
+    float metallic;
+    float roughness;
+};
+
+struct GameObject
+{
+    Material* material;
+};
+
+void UploadImageData(ZaynMemory* zaynMem, stbi_uc* pixels, uint32_t width, uint32_t height, Texture* texture)
+{
+    VkDeviceSize imageSize = width * height * 4;
+
+    // a. Create Staging buffer
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+
+    createBuffer(zaynMem, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+    // b. copy data from pixels into staging buffer
+    void* data;
+    vkMapMemory(zaynMem->vulkan.vkDevice, stagingBufferMemory, 0, imageSize, 0, &data);
+    memcpy(data, pixels, static_cast<size_t>(imageSize));
+    vkUnmapMemory(zaynMem->vulkan.vkDevice, stagingBufferMemory);
+
+
+    TransitionImageLayout(zaynMem, texture->image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture->mipLevels);
+   
+    vkDestroyBuffer(zaynMem->vulkan.vkDevice, stagingBuffer, nullptr);
+    vkFreeMemory(zaynMem->vulkan.vkDevice, stagingBufferMemory, nullptr);
+    GenerateMipmaps(texture->image, VK_FORMAT_R8G8B8A8_SRGB, width, width, texture->mipLevels, Zayn);
+}
+
+
+
+void CreateTexture(ZaynMemory* zaynMem, TextureCreateInfo* info, Texture* outTexture)
+{
+    // Load image data
+    int texWidth, texHeight, texChannels;
+    stbi_uc* pixels = stbi_load(info->path, &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    if (!pixels) {
+        fprintf(stderr, "Failed to load texture image: %s\n", info->path);
+        exit(EXIT_FAILURE);
+    }
+
+    outTexture->width = (uint32_t)texWidth;
+    outTexture->height = (uint32_t)texHeight;
+
+    // Mipmap calculation
+    if (info->generateMipmaps) {
+        int maxDim;
+        if (texWidth > texHeight) {
+            maxDim = texWidth;
+        }
+        else {
+            maxDim = texHeight;
+        }
+        outTexture->mipLevels = (uint32_t)(floor(log2(maxDim)) + 1);
+    }
+    else {
+        outTexture->mipLevels = 1;
+    } 
+
+
+    // Create Vulkan image
+    CreateImage(
+        texWidth, texHeight,
+        outTexture->mipLevels,
+        info->format,
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        outTexture->image,
+        outTexture->memory,
+        zaynMem
+    );
+
+    // Upload image data and generate mipmaps
+    UploadImageData(Zayn, pixels, (uint32_t)texWidth, (uint32_t)texHeight, outTexture);
+    stbi_image_free(pixels);
+
+   
+    // Create image view
+    outTexture->view = CreateImageView( outTexture->image, info->format, VK_IMAGE_ASPECT_COLOR_BIT, outTexture->mipLevels, zaynMem);
+
+
+    CreateTextureSampler(zaynMem, outTexture->mipLevels, &outTexture->sampler);
+
+}
+
+//void CreateTexture(const char* path, Texture* texture)
+//{
+//    // 1. Load image data
+//    int width, height, channels;
+//    stbi_uc* pixels = stbi_load(path, &width, &height, &channels, STBI_rgb_alpha);
+//    texture->mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
+//    if (!pixels)
+//    {
+//        throw std::runtime_error("failed to load texture image!");
+//    }
+//
+//    // 2. Create Vulkan_image | Allocate Memory
+//    CreateImage(width, height, texture->mipLevels, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->image, texture->memory, Zayn);
+//
+//    // 3. Upload to GPU
+//    UploadImageData(Zayn, width, height, pixels, texture->image);
+//
+//
+//}
+
+void CreateGameObject(ZaynMemory* zaynMem, GameObject* gameObj)
+{
+    CreateTextureImage(zaynMem, zaynMem->vulkan.vkMipLevels, &zaynMem->vulkan.vkTextureImage, &zaynMem->vulkan.vkTextureImageMemory, getTexturePath("viking_room.png"));
+    CreateTextureImageView(zaynMem, zaynMem->vulkan.vkMipLevels, &zaynMem->vulkan.vkTextureImage, &zaynMem->vulkan.vkTextureImageView);
+    CreateTextureSampler(zaynMem, zaynMem->vulkan.vkMipLevels, &zaynMem->vulkan.vkTextureSampler);
+    LoadModel(getModelPath("viking_room.obj"), &zaynMem->vulkan.vkVertices, &zaynMem->vulkan.vkIndices);
+    CreateVertexBuffer(zaynMem, zaynMem->vulkan.vkVertices, &zaynMem->vulkan.vkVertexBuffer, &zaynMem->vulkan.vkVertexBufferMemory);
+    CreateIndexBuffer(zaynMem, zaynMem->vulkan.vkIndices, &zaynMem->vulkan.vkIndexBuffer, &zaynMem->vulkan.vkIndexBufferMemory);
+}
+
+
 
 
 
@@ -1946,6 +2108,12 @@ void InitRender_Vulkan(ZaynMemory* zaynMem)
     
     CreateGraphicsPipeline(zaynMem, &zaynMem->vulkan.vkGraphicsPipeline, getShaderPath("vkShader_3d_INIT_vert.spv"), getShaderPath("vkShader_3d_INIT_frag.spv"), zaynMem->vulkan.vkPushConstantRanges, &zaynMem->vulkan.vkDescriptorSetLayout, &zaynMem->vulkan.vkPipelineLayout);
     
+
+
+    GameObject gameObj = {};
+    
+    CreateGameObject(zaynMem, &gameObj);
+
     
     
     
@@ -1970,26 +2138,21 @@ void InitRender_Vulkan(ZaynMemory* zaynMem)
     //CreateGraphicsPipeline(Zayn, &Zayn->grid.pipeline, getShaderPath("grid_vert.spv"), getShaderPath("grid_frag.spv"), Zayn->vkPushConstantRanges, &Zayn->vkDescriptorSetLayout_blank, &Zayn->vkPipelineLayout_blank);
     //CreateGraphicsPipeline(Zayn, &Zayn->grid.pipeline, getShaderPath("grid_vert.spv"), getShaderPath("grid_frag.spv"), Zayn->vkPushConstantRanges, &Zayn->vkDescriptorSetLayout_blank, &Zayn->vkPipelineLayout_blank);
     
-    CreateTextureImage(zaynMem, zaynMem->vulkan.vkMipLevels, &zaynMem->vulkan.vkTextureImage, &zaynMem->vulkan.vkTextureImageMemory, getTexturePath("viking_room.png"));
     //CreateTextureImage(Zayn->monkey_RC.mipLevels, &Zayn->monkey_RC.textureImage, &Zayn->monkey_RC.textureImageMemory, getTexturePath("viking_room.png"));
     //CreateTextureImage(Zayn->sphereRC.mipLevels, &Zayn->sphereRC.textureImage, &Zayn->sphereRC.textureImageMemory, getTexturePath("viking_room.png"));
     
-    CreateTextureImageView(zaynMem, zaynMem->vulkan.vkMipLevels, &zaynMem->vulkan.vkTextureImage, &zaynMem->vulkan.vkTextureImageView);
     //CreateTextureImageView(Zayn->monkey_RC.mipLevels, &Zayn->monkey_RC.textureImage, &Zayn->monkey_RC.textureImageView);
     //CreateTextureImageView(Zayn->sphereRC.mipLevels, &Zayn->sphereRC.textureImage, &Zayn->sphereRC.textureImageView);
     
-    CreateTextureSampler(zaynMem, zaynMem->vulkan.vkMipLevels, &zaynMem->vulkan.vkTextureSampler);
     //CreateTextureSampler(Zayn->monkey_RC.mipLevels, &Zayn->monkey_RC.textureSampler);
     //CreateTextureSampler(Zayn->sphereRC.mipLevels, &Zayn->sphereRC.textureSampler);
     
-    LoadModel(getModelPath("viking_room.obj"), &zaynMem->vulkan.vkVertices, &zaynMem->vulkan.vkIndices);
     //LoadModel(getModelPath("gwc.obj"), &zaynMem->vulkan.vkVertices, &zaynMem->vulkan.vkIndices);
     //LoadModel(getModelPath("viking_room.obj"), &Zayn->monkey_RC.vertices, &Zayn->monkey_RC.indices);
     //LoadModel(getModelPath("sphere.obj"), &Zayn->sphereRC.vertices, &Zayn->sphereRC.indices);
     //LoadModel(getModelPath("sphere.obj"), &Zayn->sphereRC_blank.vertices, &Zayn->sphereRC_blank.indices, glm::vec3(0.9f, 0.9f, 0.5f));
     //LoadModel(getModelPath("grid_plane.obj"), &Zayn->grid.vertices, &Zayn->grid.indices);
     
-    CreateVertexBuffer(zaynMem, zaynMem->vulkan.vkVertices, &zaynMem->vulkan.vkVertexBuffer, &zaynMem->vulkan.vkVertexBufferMemory);
     //CreateVertexBuffer(Zayn->monkey_RC.vertices, &Zayn->monkey_RC.vertexBuffer, &Zayn->monkey_RC.vertexBufferMemory);
     //CreateVertexBuffer(Zayn->sphereRC.vertices, &Zayn->sphereRC.vertexBuffer, &Zayn->sphereRC.vertexBufferMemory);
     //CreateVertexBuffer(Zayn->sphereRC_blank.vertices, &Zayn->sphereRC_blank.vertexBuffer, &Zayn->sphereRC_blank.vertexBufferMemory);
@@ -1997,7 +2160,6 @@ void InitRender_Vulkan(ZaynMemory* zaynMem)
     
     //CreateInstanceBuffer(20, &Zayn->monkey_RC.instanceBuffer, &Zayn->monkey_RC.instanceBufferMemory);
     
-    CreateIndexBuffer(zaynMem, zaynMem->vulkan.vkIndices, &zaynMem->vulkan.vkIndexBuffer, &zaynMem->vulkan.vkIndexBufferMemory);
     //CreateIndexBuffer(Zayn->monkey_RC.indices, &Zayn->monkey_RC.indexBuffer, &Zayn->monkey_RC.indexBufferMemory);
     //CreateIndexBuffer(Zayn->sphereRC.indices, &Zayn->sphereRC.indexBuffer, &Zayn->sphereRC.indexBufferMemory);
     //CreateIndexBuffer(Zayn->sphereRC_blank.indices, &Zayn->sphereRC_blank.indexBuffer, &Zayn->sphereRC_blank.indexBufferMemory);
