@@ -20,6 +20,8 @@
 #include <vector>
 
 //struct RendererType;
+//struct GameObject;
+
 struct Vertex;
 
 struct MyVulkanData
@@ -97,12 +99,81 @@ struct MyVulkanData
 	std::vector<VkDeviceMemory> vkUniformBuffersMemory;
 	std::vector<void*> vkUniformBuffersMapped;
 	VkDescriptorPool vkDescriptorPool;
+	VkDescriptorPool vkDescriptorPool_blank;
 	std::vector<VkDescriptorSet> vkDescriptorSets;
 	uint32_t vkCurrentFrame = 0;
 	uint32 vkCurrentImageIndex;
 	bool vkIsFrameStarted = false;
 };
 
+
+
+
+// --- Texture --- 
+struct TextureCreateInfo
+{
+	std::string path;
+	VkFormat format;
+	bool generateMipmaps;
+	VkFilter filter;
+	VkSamplerAddressMode addressMode;
+};
+
+struct Texture
+{
+	VkImage image;
+	VkDeviceMemory memory;
+	VkImageView view;
+	VkSampler sampler;
+	uint32_t width;
+	uint32_t height;
+	uint32_t mipLevels = 1;
+};
+
+enum MaterialType
+{
+	MATERIAL_PBR,
+	MATERIAL_UNLIT
+};
+
+struct MaterialCreateInfo
+{
+	MaterialType type = MATERIAL_PBR;
+	Texture* texture;
+	float color[4];
+	float roughness;
+	float metallic;
+};
+
+struct Material
+{
+	MaterialType type;
+	std::vector<VkDescriptorSet> descriptorSets;
+	Texture* texture;
+	float color[4];
+	float metallic;
+	float roughness;
+};
+
+struct Mesh
+{
+	VkBuffer vertexBuffer;
+	VkDeviceMemory vertexBufferMemory;
+	VkBuffer indexBuffer;
+	VkDeviceMemory indexBufferMemory;
+	uint32_t indexCount;
+	uint32_t vertexCount;
+
+	std::vector<Vertex> vertices;
+	std::vector<uint32_t> indices;
+};
+
+struct GameObject
+{
+	Material* material;
+	Mesh* mesh;
+	glm::mat4 transform;
+};
 
 struct ZaynMemory 
 {
@@ -124,6 +195,13 @@ struct ZaynMemory
 
 	RendererType rendererType;
 	Camera camera;
+	std::vector<GameObject> gameObjects;
+
+
+	Texture texture_001;
+	Material material_001;
+
+	Mesh mesh_001;
 };
 
 void ZaynInit(ZaynMemory* zaynMemory);

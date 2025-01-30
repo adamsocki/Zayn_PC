@@ -12,6 +12,10 @@
 
 
 struct ZaynMemory; 
+struct TextureCreateInfo;
+struct Texture;
+struct MaterialCreateInfo;
+struct Material;
 //struct MyVulkanData;
 
 struct InstancedData
@@ -175,6 +179,8 @@ struct QueueFamilyIndices
 };
 
 
-
+std::string getTexturePath(const std::string& filename);
+void CreateTexture(ZaynMemory* zaynMem, TextureCreateInfo* info, Texture* outTexture);
+void CreateMaterial(ZaynMemory* zaynMem, MaterialCreateInfo* info, Material* outMaterial);
 void InitRender_Vulkan(ZaynMemory* zaynMem);
 void UpdateRender_Vulkan(ZaynMemory* zaynMem);
