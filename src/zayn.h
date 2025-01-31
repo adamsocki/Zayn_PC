@@ -173,8 +173,8 @@ struct GameObject
 	Material* material;
 	Mesh* mesh;
 	glm::mat4 transform;
-
-	ModelPushConstant pushConstantData;
+	
+    ModelPushConstant pushConstantData;
 };
 
 struct ZaynMemory 
