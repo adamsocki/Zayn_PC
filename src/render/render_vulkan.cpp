@@ -2063,6 +2063,10 @@ bool AllocateMaterialDescriptorSet(ZaynMemory* zaynMem, Material* material, uint
         return false;
     }
 
+    VkDescriptorBufferInfo bufferInfo = {};
+    bufferInfo.buffer = zaynMem->vulkan.vkUniformBuffers[frameIndex]; // Use frame's uniform buffer
+    bufferInfo.offset = 0;
+    bufferInfo.range = sizeof(UniformBufferObject);
 
     // Bind the material's texture to the descriptor set
     VkDescriptorImageInfo imageInfo{};
@@ -2070,15 +2074,31 @@ bool AllocateMaterialDescriptorSet(ZaynMemory* zaynMem, Material* material, uint
     imageInfo.imageView = material->texture->view;
     imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-    VkWriteDescriptorSet descriptorWrite{};
-    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrite.dstSet = material->descriptorSets[frameIndex];
-    descriptorWrite.dstBinding = 1; // Binding index in the shader
-    descriptorWrite.descriptorCount = 1;
-    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptorWrite.pImageInfo = &imageInfo;
+    std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
 
-    vkUpdateDescriptorSets(zaynMem->vulkan.vkDevice, 1, &descriptorWrite, 0, nullptr);
+    descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[0].dstSet = material->descriptorSets[frameIndex];
+    descriptorWrites[0].dstBinding = 0;
+    descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorWrites[0].descriptorCount = 1;
+    descriptorWrites[0].pBufferInfo = &bufferInfo;
+
+    descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[1].dstSet = material->descriptorSets[frameIndex];
+    descriptorWrites[1].dstBinding = 1;
+    descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorWrites[1].descriptorCount = 1;
+    descriptorWrites[1].pImageInfo = &imageInfo;
+
+    //VkWriteDescriptorSet descriptorWrite{};
+    //descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    //descriptorWrite.dstSet = material->descriptorSets[frameIndex];
+    //descriptorWrite.dstBinding = 1; // Binding index in the shader
+    //descriptorWrite.descriptorCount = 1;
+    //descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    //descriptorWrite.pImageInfo = &imageInfo;
+
+    vkUpdateDescriptorSets(zaynMem->vulkan.vkDevice, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 
 
     return true;
@@ -2143,7 +2163,31 @@ void CreateGameObject(ZaynMemory* zaynMem, GameObject* gameObj)
     CreateIndexBuffer(zaynMem, zaynMem->vulkan.vkIndices, &zaynMem->vulkan.vkIndexBuffer, &zaynMem->vulkan.vkIndexBufferMemory);
 }
 
+void RenderGameObjects(ZaynMemory* zaynMem, VkCommandBuffer commandBuffer)
+{
+    GameObject& gameObj = zaynMem->gameObject;
+    uint32_t dynamicOffset = zaynMem->vulkan.vkCurrentFrame * sizeof(UniformBufferObject);
 
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, zaynMem->vulkan.vkGraphicsPipeline);
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, zaynMem->vulkan.vkPipelineLayout, 0, 1, &zaynMem->vulkan.vkDescriptorSets[zaynMem->vulkan.vkCurrentFrame], 0, nullptr);
+    
+    // Push constants for the transform
+    ModelPushConstant pushConstant = {};
+    pushConstant.model_1 = TRS((V3(0.0f, 1.0f, -1.0f)), AxisAngle(V3(0.0f, 0.2f, 0.20f), 0.0f), V3(1.0f, 1.0f, 1.0f));
+
+
+    vkCmdPushConstants(commandBuffer, zaynMem->vulkan.vkPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ModelPushConstant), &pushConstant);
+
+    // Bind the vertex and index buffers
+    VkBuffer vertexBuffers[] = { zaynMem->mesh_001.vertexBuffer };
+    VkDeviceSize offsets[] = { 0 };
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+    vkCmdBindIndexBuffer(commandBuffer, zaynMem->mesh_001.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+    // Draw the mesh
+    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(zaynMem->mesh_001.indices.size()), 1, 0, 0, 0);
+}
     
 
 
@@ -2176,11 +2220,20 @@ void InitRender_Vulkan(ZaynMemory* zaynMem)
     // for new system  1. 
     CreateTextureImage(zaynMem, zaynMem->texture_001.mipLevels, &zaynMem->texture_001.image, &zaynMem->texture_001.memory, getTexturePath("viking_room.png"));
     CreateTextureImageView(zaynMem, zaynMem->texture_001.mipLevels, &zaynMem->texture_001.image, &zaynMem->texture_001.view);
-    CreateTextureSampler(zaynMem, zaynMem->texture_001.mipLevels, &zaynMem->texture_001.sampler);
+    CreateTextureSampler(zaynMem, zaynMem->texture_001.mipLevels, &zaynMem->texture_001.sampler); 
+    //CreateMesh(zaynMem, getModelPath("viking_room.obj"), zaynMem->gameObject.mesh);
     LoadModel(getModelPath("viking_room.obj"), &zaynMem->mesh_001.vertices, &zaynMem->mesh_001.indices);
     CreateVertexBuffer(zaynMem, zaynMem->mesh_001.vertices, &zaynMem->mesh_001.vertexBuffer, &zaynMem->mesh_001.vertexBufferMemory);
     CreateIndexBuffer(zaynMem, zaynMem->mesh_001.indices, &zaynMem->mesh_001.indexBuffer, &zaynMem->mesh_001.indexBufferMemory);
 
+
+    //CreateTextureImage(zaynMem, text->mipLevels, &text->image, &text->memory, getTexturePath("viking_room.png"));
+       //CreateTextureImageView(zaynMem, text->mipLevels, &text->image, &text->view);
+       //CreateTextureSampler(zaynMem, text->mipLevels, &text->sampler);
+       //CreateMesh(zaynMem, getModelPath("viking_room.obj"), zaynMem->gameObject.mesh);
+       ////LoadModel(getModelPath("viking_room.obj"), &zaynMem->mesh_001.vertices, &zaynMem->mesh_001.indices);
+       //CreateVertexBuffer(zaynMem, zaynMem->mesh_001.vertices, &zaynMem->mesh_001.vertexBuffer, &zaynMem->mesh_001.vertexBufferMemory);
+       //CreateIndexBuffer(zaynMem, zaynMem->mesh_001.indices, &zaynMem->mesh_001.indexBuffer, &zaynMem->mesh_001.indexBufferMemory);
 
 
     CreateTextureImage(zaynMem, zaynMem->vulkan.vkMipLevels, &zaynMem->vulkan.vkTextureImage, &zaynMem->vulkan.vkTextureImageMemory, getTexturePath("viking_room.png"));
@@ -2486,7 +2539,7 @@ void RenderEntity_notYetEntity(ZaynMemory* zaynMem, VkCommandBuffer imageBuffer,
 
     vkCmdPushConstants(imageBuffer, *pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ModelPushConstant), pushConstant);
 
-    // Replace Below with BindModel() and DrawModel()
+    
 
     VkBuffer vertexBuffers[] = { *vertexBuffer };
     VkDeviceSize offsets[] = { 0 };
@@ -2495,30 +2548,6 @@ void RenderEntity_notYetEntity(ZaynMemory* zaynMem, VkCommandBuffer imageBuffer,
     vkCmdBindIndexBuffer(imageBuffer, *indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
     vkCmdDrawIndexed(imageBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-
-
-    //Material* currentMaterial = nullptr;
-
-    //for (GameObject& obj : zaynMem->gameObjects) {
-    //    // Material change detection
-    //    if (obj.material != currentMaterial) {
-    //        vkCmdBindPipeline(imageBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-    //            *pipeline);
-    //        vkCmdBindDescriptorSets(imageBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,*pipelineLayout, 0, 1,
-    //            &descriptorSets[zaynMem->vulkan.vkCurrentFrame], 0, nullptr);
-    //        currentMaterial = obj.material;
-    //    }
-
-    //    // Push constant for transform
-    //    vkCmdPushConstants(imageBuffer, *pipelineLayout,
-    //        VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &obj.transform);
-
-    //    VkDeviceSize offsets[] = { 0 };
-    //    // Draw mesh
-    //    vkCmdBindVertexBuffers(imageBuffer, 0, 1, &obj.mesh->vertexBuffer, offsets);
-    //    vkCmdBindIndexBuffer(imageBuffer, obj.mesh->indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    //    vkCmdDrawIndexed(imageBuffer, obj.mesh->indexCount, 1, 0, 0, 0);
-    //}
 
 }
 
@@ -2709,13 +2738,13 @@ void InitRender_Entity(ZaynMemory* zaynMem)
 
 
 
-vec3 posModel1 = V3(0.0f, 0.0f, 0.0f);
+vec3 posModel1 = V3(0.0f, 0.0f, -0.0f);
 
 
 void UpdateRender_Vulkan(ZaynMemory* zaynMem)
 {
     ModelPushConstant pushConstantData1 = {};
-    pushConstantData1.model_1 = TRS((posModel1), AxisAngle(V3(0.0f, 0.2f, 0.20f), 0.0f), V3(1.0f, 1.0f, 1.0f));
+    pushConstantData1.model_1 = TRS((posModel1), AxisAngle(V3(30.0f, 0.2f, 0.20f), 30.0f), V3(1.0f, 1.0f, 1.0f));
    
    
    if (BeginFrame(zaynMem))
@@ -2724,8 +2753,8 @@ void UpdateRender_Vulkan(ZaynMemory* zaynMem)
    
        BeginSwapChainRenderPass(zaynMem, zaynMem->vulkan.vkCommandBuffers[zaynMem->vulkan.vkCurrentFrame]);
    
-       RenderEntity_notYetEntity(zaynMem, zaynMem->vulkan.vkCommandBuffers[zaynMem->vulkan.vkCurrentFrame], &zaynMem->vulkan.vkGraphicsPipeline, &zaynMem->vulkan.vkPipelineLayout, zaynMem->vulkan.vkDescriptorSets, &zaynMem->vulkan.vkVertexBuffer, &zaynMem->vulkan.vkIndexBuffer, zaynMem->vulkan.vkIndices, &pushConstantData1);
-   
+      RenderEntity_notYetEntity(zaynMem, zaynMem->vulkan.vkCommandBuffers[zaynMem->vulkan.vkCurrentFrame], &zaynMem->vulkan.vkGraphicsPipeline, &zaynMem->vulkan.vkPipelineLayout, zaynMem->vulkan.vkDescriptorSets, &zaynMem->vulkan.vkVertexBuffer, &zaynMem->vulkan.vkIndexBuffer, zaynMem->vulkan.vkIndices, &pushConstantData1);
+       RenderGameObjects(zaynMem, zaynMem->vulkan.vkCommandBuffers[zaynMem->vulkan.vkCurrentFrame]);
        //RenderEntity_notYetEntity(zaynMem, )
    
    }

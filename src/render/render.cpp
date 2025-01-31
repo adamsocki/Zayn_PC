@@ -39,6 +39,11 @@ void InitRender(ZaynMemory* zaynMem)
 	//Material objectMaterial;
 	CreateMaterial(zaynMem, &matInfo, &zaynMem->material_001);
 
+	zaynMem->gameObject.material = &zaynMem->material_001;
+	zaynMem->gameObject.mesh = &zaynMem->mesh_001;
+
+
+	zaynMem->gameObject.transform = glm::mat4(1.0f);
 
 
 	//std::cout << "VULKAN RENDERER" << std::endl;
