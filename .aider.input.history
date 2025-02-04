@@ -1,0 +1,2538 @@
+
+# 2025-01-31 20:45:56.015056
++y
+
+# 2025-01-31 20:47:34.072369
++are there improvemets to this you could make? void CreateRenderPass(ZaynMemory* zaynMem)
++{
++    VkAttachmentDescription colorAttachment{};
++    colorAttachment.format = zaynMem->vulkan.vkSwapChainImageFormat;
++    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
++    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
++    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
++    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
++    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
++    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
++
++
++    // changed for imgui
++#if IMGUI
++    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
++#else
++    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
++#endif
++
++
++
++    VkAttachmentDescription depthAttachment{};
++    depthAttachment.format = FindDepthFormat(zaynMem);
++    depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
++    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
++    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
++    depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
++    depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
++    depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
++    depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
++
++    VkAttachmentReference colorAttachmentRef{};
++    colorAttachmentRef.attachment = 0;
++    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
++
++    VkAttachmentReference depthAttachmentRef{};
++    depthAttachmentRef.attachment = 1;
++    depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
++
++    VkSubpassDescription subpass{};
++    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
++    subpass.colorAttachmentCount = 1;
++    subpass.pColorAttachments = &colorAttachmentRef;
++    subpass.pDepthStencilAttachment = &depthAttachmentRef;
++
++    VkSubpassDependency dependency{};
++    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
++    dependency.dstSubpass = 0;
++    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
++    dependency.srcAccessMask = 0;
++    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
++    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
++
++    std::array<VkAttachmentDescription, 2> attachments = { colorAttachment, depthAttachment };
++    VkRenderPassCreateInfo renderPassInfo{};
++    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
++    renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
++    renderPassInfo.pAttachments = attachments.data();
++    renderPassInfo.subpassCount = 1;
++    renderPassInfo.pSubpasses = &subpass;
++    renderPassInfo.dependencyCount = 1;
++    renderPassInfo.pDependencies = &dependency;
++
++    if (vkCreateRenderPass(zaynMem->vulkan.vkDevice, &renderPassInfo, nullptr, &zaynMem->vulkan.vkRenderPass) != VK_SUCCESS)
++    {
++        throw std::runtime_error("failed to create render pass!");
++    }
++    else {
++        std::cout << "Render pass created successfully." << std::endl;
++    }
+
+# 2025-01-31 20:52:02.873557
++n
+
+# 2025-01-31 20:52:37.289552
++/add src\render\render_vulkan_v2.cpp
+
+# 2025-01-31 20:52:54.802030
++src\render\render_vulkan_v2.cpp
+
+# 2025-01-31 20:53:46.353380
++fist we need to see if there are fixes that can be made to the CreateImage function i am about to add to it void CreateImage(uint32_t width,
++    uint32_t height,
++    uint32_t mipLevels,
++    VkFormat format,
++    VkImageTiling tiling,
++    VkImageUsageFlags usage,
++    VkMemoryPropertyFlags properties,
++    VkImage& image,
++    VkDeviceMemory& imageMemory,
++    ZaynMemory* zaynMem)
++{
++    VkImageCreateInfo imageInfo{};
++    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
++    imageInfo.imageType = VK_IMAGE_TYPE_2D;
++    imageInfo.extent.width = width;
++    imageInfo.extent.height = height;
++    imageInfo.extent.depth = 1;
++    imageInfo.mipLevels = mipLevels;
++    imageInfo.arrayLayers = 1;
++    imageInfo.format = format;
++    imageInfo.tiling = tiling;
++    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
++    imageInfo.usage = usage;
++    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
++    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
++
++    if (vkCreateImage(zaynMem->vulkan.vkDevice, &imageInfo, nullptr, &image) != VK_SUCCESS)
++    {
++        throw std::runtime_error("failed to create image!");
++    }
++
++    VkMemoryRequirements memRequirements;
++    vkGetImageMemoryRequirements(zaynMem->vulkan.vkDevice, image, &memRequirements);
++
++    VkMemoryAllocateInfo allocInfo{};
++    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
++    allocInfo.allocationSize = memRequirements.size;
++    allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, properties, zaynMem);
++
++    if (vkAllocateMemory(zaynMem->vulkan.vkDevice, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS)
++    {
++        throw std::runtime_error("failed to allocate image memory!");
++    }
++
++    vkBindImageMemory(zaynMem->vulkan.vkDevice, image, imageMemory, 0);
++
+
+# 2025-01-31 20:56:55.821465
++wi want to makearstasnow i arstnow i need to add CreateDepthResources(zaynMem);
+
+# 2025-01-31 21:00:10.971305
++i need both CreateDepthResources(zaynMem);
++CreateFrameBuffers(zaynMem); in my code for render_vulkan_v2.cpp
+
+# 2025-01-31 21:00:12.413712
++y
+
+# 2025-01-31 21:01:28.526523
++ i need both CreateDepthResources(zaynMem);
++CreateFrameBuffers(zaynMem); in my code for render_vulkan_v2.cpp
+
+# 2025-01-31 21:03:00.849066
++ i need both CreateDepthResources(zaynMem);
++CreateFrameBuffers(zaynMem); in my code for src\render\render_vulkan_v2.cpp
+
+# 2025-01-31 21:03:05.950983
++o
+
+# 2025-01-31 21:03:08.405067
++y
+
+# 2025-01-31 21:04:09.480469
++render_vulkan_v2.cpp
+
+# 2025-01-31 21:04:10.637335
++y
+
+# 2025-01-31 21:05:56.272480
++add a correctly written CreateDepthResources and CreateFrameBuffers function
+
+# 2025-01-31 21:10:04.977514
++n
+
+# 2025-01-31 21:10:52.851725
++i am trying to make a game engine with game objects. right now i am woroking on fixing my render engine. can yiy add `CreateImageView`
+
+# 2025-01-31 21:15:32.641197
++i am trying to make a game engine with game objects. right now i am woroking on fixing my render engine. can yiy add `TransitionImageLayout`
+
+# 2025-01-31 21:17:50.325764
++render_vulkan_v2.cpp
+
+# 2025-01-31 21:17:51.424878
++y
+
+# 2025-01-31 21:18:53.648449
++TransitionImageLayout
+
+# 2025-01-31 21:19:54.387744
++t
+
+# 2025-01-31 21:32:26.033824
++render_vulkan_v2.cpp
+
+# 2025-01-31 21:32:26.970367
++Y
+
+# 2025-01-31 21:33:04.035361
++render_vulkan_v2.cpp
+
+# 2025-01-31 21:33:04.801476
++y
+
+# 2025-01-31 21:33:31.851374
++n
+
+# 2025-01-31 21:33:42.880261
++i am trying to make a game engine with game objects. right now i am woroking on fixing my render engine. can yiy add `TransitionImageLayout`
+
+# 2025-01-31 21:35:37.224991
++y
+
+# 2025-01-31 21:38:45.759522
++n
+
+# 2025-01-31 21:45:11.118866
++ok what code needs to come next in my renderer? my goal is to make an interface for making game objects that can be rendered and referenced in this, these will have models that are objs and other textures/materials that i will likely be exporting from blender. my understanding is that i need to make descriptorsets, descriptor pools, graphis piplines, texture imager samlers vertex butters index buffers uniform buffers and maybe even pushconstants 
+
+# 2025-01-31 21:46:57.149901
++n 
+
+# 2025-01-31 21:46:58.860960
++n
+
+# 2025-01-31 21:47:28.452003
++ok what code needs to come next in my renderer? my goal is to make an interface for making game objects that can be rendered and referenced in this, these will have models that are objs and other textures/materials that i will likely be exporting from blender. my understanding is that i need to make descriptorsets, descriptor pools, graphis piplines, texture imager samlers vertex butters index buffers uniform buffers and maybe even pushconstants. please try to avoid oop. and try to be as close to C as you can
+
+# 2025-01-31 21:47:55.631604
++render_vulkan_v2.cpp
+
+# 2025-01-31 21:47:56.430492
++y
+
+# 2025-01-31 21:48:32.165141
++ok what code needs to come next in my renderer? my goal is to make an interface for making game objects that can be rendered and referenced in this, these will have models that are objs and other textures/materials that i will likely be exporting from blender. my understanding is that i need to make descriptorsets, descriptor pools, to start with. please try to avoid oop. and try to be as close to C as you can
+
+# 2025-01-31 21:48:39.327748
++n
+
+# 2025-01-31 21:48:50.256276
++ok what code needs to come next in my renderer? my goal is to make an interface for making game objects that can be rendered and referenced in this, these will have models that are objs and other textures/materials that i will likely be exporting from blender. my understanding is that i need to make descriptorsets, descriptor pools, to start with. please try to avoid oop. and try to be as close to C as you can
+
+# 2025-01-31 21:50:23.748612
++ok what code needs to come next in my renderer? my goal is to make an interface for making game objects that can be rendered and referenced in this, these will have models that are objs and other textures/materials that i will likely be exporting from blender. my understanding is that i need to make descriptorsets, descriptor pools, to start with. please try to avoid oop. and try to be as close to C as you can. this is in render_vulkan_v2.cpp
+
+# 2025-01-31 21:50:26.043067
++y
+
+# 2025-01-31 21:57:18.640476
++n
+
+# 2025-01-31 21:58:27.841788
++i need the `UniformBufferObject`
+
+# 2025-01-31 21:59:08.972093
++y
+
+# 2025-01-31 22:06:36.513500
++render_vulkan_v2.cpp
+
+# 2025-01-31 22:06:37.516500
++y
+
+# 2025-01-31 22:08:46.658014
++i am working on a game engine where i want to create game objects for the game, i need help setting up my rendering engine. next i think i need something like a pipeline. then im going to want textureimage and texture view, but i prob want these associates with game object or materials or something. render_vulkan_v2.cpp src\render\render_vulkan.h
+
+# 2025-01-31 22:08:54.297038
++y
+
+# 2025-01-31 22:24:25.108588
++n
+
+# 2025-01-31 22:24:38.737437
++the erros i am getting ar, Severity	Code	Description	Project	File	Line	Suppression State	Details
++Error (active)	E0020	identifier "createBuffer" is undefined	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1370		
++Error	C3861	'CopyBufferToImage': identifier not found	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1394		
++Error	C3861	'createBuffer': identifier not found	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1370		
++Error	C2660	'CreateImage': function does not take 8 arguments	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1384		
++Error	C2079	'GameObject::material' uses undefined struct 'Material'	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	183		
++Error	C2079	'GameObject::material' uses undefined struct 'Material'	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	183		
++Error	C2079	'GameObject::material' uses undefined struct 'Material'	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	183		
++Error	C2079	'GameObject::material' uses undefined struct 'Material'	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	183		
++Error	C2079	'GameObject::material' uses undefined struct 'Material'	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	183		
++Error	C2079	'GameObject::material' uses undefined struct 'Material'	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	183		
++Error	C2011	'Material': 'struct' type redefinition	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	148		
++Error	C2011	'Material': 'struct' type redefinition	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	148		
++Error	C2011	'Material': 'struct' type redefinition	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	148		
++Error	C2011	'Material': 'struct' type redefinition	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	148		
++Error	C2011	'Material': 'struct' type redefinition	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	148		
++Error	C2011	'Material': 'struct' type redefinition	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	148		
++Error	C2011	'Texture': 'struct' type redefinition	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	123		
++Error	C2011	'Texture': 'struct' type redefinition	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	123		
++Error	C2011	'Texture': 'struct' type redefinition	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	123		
++Error	C2011	'Texture': 'struct' type redefinition	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	123		
++Error	C2011	'Texture': 'struct' type redefinition	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	123		
++Error	C2011	'Texture': 'struct' type redefinition	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	123		
++Error	C2660	'TransitionImageLayout': function does not take 4 arguments	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1391		
++Error	C2660	'TransitionImageLayout': function does not take 4 arguments	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1397		
++Error	C2660	'vkCreateSampler': function does not take 3 arguments	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1419		
++Error	C2079	'ZaynMemory::material_001' uses undefined struct 'Material'	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	210		
++Error	C2079	'ZaynMemory::material_001' uses undefined struct 'Material'	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	210		
++Error	C2079	'ZaynMemory::material_001' uses undefined struct 'Material'	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	210		
++Error	C2079	'ZaynMemory::material_001' uses undefined struct 'Material'	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	210		
++Error	C2079	'ZaynMemory::material_001' uses undefined struct 'Material'	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	210		
++Error	C2079	'ZaynMemory::material_001' uses undefined struct 'Material'	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	210		
++Error	C2079	'ZaynMemory::texture_001' uses undefined struct 'Texture'	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	209		
++Error	C2079	'ZaynMemory::texture_001' uses undefined struct 'Texture'	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	209		
++Error	C2079	'ZaynMemory::texture_001' uses undefined struct 'Texture'	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	209		
++Error	C2079	'ZaynMemory::texture_001' uses undefined struct 'Texture'	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	209		
++Error	C2079	'ZaynMemory::texture_001' uses undefined struct 'Texture'	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	209		
++Error	C2079	'ZaynMemory::texture_001' uses undefined struct 'Texture'	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	209		
++Error (active)	E0434	a reference of type "VkDeviceMemory &" (aka "VkDeviceMemory_T *&") (not const-qualified) cannot be initialized with a value of type "VkImage" (aka "VkImage_T *")	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1388		
++Error (active)	E0167	argument of type "int" is incompatible with parameter of type "VkFormat"	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1384		
++Error (active)	E0167	argument of type "VkFormat" is incompatible with parameter of type "VkImageTiling"	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1385		
++Error (active)	E0167	argument of type "ZaynMemory *" is incompatible with parameter of type "uint32_t" (aka "unsigned int")	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1384		
++Error (active)	E0135	class "Texture" has no member "imageMemory"	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1388		
++Error (active)	E0135	class "Texture" has no member "imageView"	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1401		
++Error (active)	E0020	identifier "CopyBufferToImage" is undefined	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1394		
++Error (active)	E0461	initial value of reference to non-const must be an lvalue	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1387		
++Error	C2027	use of undefined type 'Texture'	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1388		
++Error	C2027	use of undefined type 'Texture'	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1388		
++Error	C2027	use of undefined type 'Texture'	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1391		
++Error	C2027	use of undefined type 'Texture'	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1394		
++Error	C2027	use of undefined type 'Texture'	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1397		
++Error	C2027	use of undefined type 'Texture'	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1401		
++Error	C2027	use of undefined type 'Texture'	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1401		
++Error	C2027	use of undefined type 'Texture'	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1419		
++
+
+# 2025-01-31 22:27:44.721166
++y
+
+# 2025-01-31 22:32:49.485682
++i'd like to add this to the code
+
+# 2025-01-31 22:33:06.028652
++y
+
+# 2025-01-31 22:40:53.718863
++CreateTextureImage needs fixing. 
+
+# 2025-01-31 22:43:03.955563
++i am working on a game engine where i want to create game objects for the game, i need help setting up my rendering engine. can you help with CreateTextureImage in render_vulkan_v2.cpp
+
+# 2025-01-31 22:43:06.235925
++y
+
+# 2025-01-31 22:50:09.344047
++nn
+
+# 2025-01-31 22:50:10.062666
++n
+
+# 2025-01-31 22:50:24.282502
++can you write the remainder of my rendering engine for me?
+
+# 2025-01-31 22:52:38.678003
++i need to write the rest of my rendering engine for a game engine using gameobjects. the rendering code is in render_vulkan_v2.cpp
+
+# 2025-01-31 22:52:39.868277
++y
+
+# 2025-01-31 22:54:09.075882
++the next step are to implement things for the game object like textures
+
+# 2025-01-31 22:57:04.543776
++i need to write the rest of my rendering engine for a game engine using gameobjects. the rendering code is in render_vulkan_v2.cpp
+
+# 2025-01-31 22:57:12.516751
++i need to write the rest of my rendering engine for a game engine using gameobjects. the rendering code is in render_vulkan_v2.cppa
+
+# 2025-01-31 22:57:16.092735
++y
+
+# 2025-01-31 22:58:17.004739
++ddddddddddddddddddddddddddd
+
+# 2025-01-31 22:58:20.055673
++j
+
+# 2025-01-31 23:00:07.016733
++n
+
+# 2025-01-31 23:02:57.702425
++i need to write the rest of my rendering engine for a game engine using gameobjects. the rendering code is in render_vulkan_v2.cpp
+
+# 2025-01-31 23:02:59.352896
++y
+
+# 2025-01-31 23:09:13.741725
++how would i fix this  VkPushConstantRange pushConstantRange{};
++ pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
++ pushConstantRange.offset = 0;
++ pushConstantRange.size = sizeof(mat4);
++
++ // Create pipeline
++ VkGraphicsPipelineCreateInfo pipelineInfo{};
++ pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
++ pipelineInfo.stageCount = 2;
++ pipelineInfo.pStages = shaderStages;
++ pipelineInfo.pVertexInputState = &vertexInputInfo;
++ pipelineInfo.pInputAssemblyState = &inputAssembly;
++ pipelineInfo.pViewportState = &viewportState;
++ pipelineInfo.pRasterizationState = &rasterizer;
++ pipelineInfo.layout = zaynMem->vulkan.vkPipelineLayout;
++ pipelineInfo.renderPass = zaynMem->vulkan.vkRenderPass;
++ pipelineInfo.subpass = 0;
+
+# 2025-01-31 23:10:58.931492
++how would i fix VkPushConstantRange pushConstantRange{};
++ pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
++ pushConstantRange.offset = 0;
++ pushConstantRange.size = sizeof(mat4);
++
++ // Create pipeline
++ VkGraphicsPipelineCreateInfo pipelineInfo{};
++ pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
++ pipelineInfo.stageCount = 2;
++ pipelineInfo.pStages = shaderStages;
++ pipelineInfo.pVertexInputState = &vertexInputInfo;
++ pipelineInfo.pInputAssemblyState = &inputAssembly;
++ pipelineInfo.pViewportState = &viewportState;
++ pipelineInfo.pRasterizationState = &rasterizer;
++ pipelineInfo.layout = zaynMem->vulkan.vkPipelineLayout;
++ pipelineInfo.renderPass = zaynMem->vulkan.vkRenderPass;
++ pipelineInfo.subpass = 0;  render_vulkan_v2.cpp 
+
+# 2025-01-31 23:10:59.712001
++y
+
+# 2025-01-31 23:11:31.055692
++n
+
+# 2025-01-31 23:12:22.137907
++in `RenderGameObjects` i need to fix pushConstants.model = gameObject.transform; glm isn't to mat4. transform is glm. src\zayn.h
+
+# 2025-01-31 23:12:22.911856
++y
+
+# 2025-01-31 23:12:45.371096
++n
+
+# 2025-01-31 23:14:13.184947
++i'm
+
+# 2025-01-31 23:14:23.214225
++n
+
+# 2025-01-31 23:15:43.310147
++im making a game engine where i am making game objects that render. can you help with the RenderFrame funceion, it needs all of the following helper functions, RecreateSwapChain, BeginCommandBuffer, beginrenderpass, endrenderpass, endcommandbuffer and submitcommandbuffer
+
+# 2025-01-31 23:15:54.422140
++y
+
+# 2025-01-31 23:16:07.428228
++i need the code for those functions
+
+# 2025-01-31 23:16:19.505314
++y
+
+# 2025-01-31 23:16:51.933796
++the path is src\render\render_vulkan_v2.cpp
+
+# 2025-01-31 23:16:52.853208
++y
+
+# 2025-01-31 23:17:56.018035
++n
+
+# 2025-01-31 23:18:30.757772
++now i need CleanUpSwapChain and `CreateCommandBuffers`
+
+# 2025-01-31 23:18:43.709654
++y
+
+# 2025-01-31 23:19:13.801158
++n
+
+# 2025-01-31 23:31:47.680871
++can you help me make rhr load model and create vertices and indices in render_vulkan_v2.cpp
+
+# 2025-01-31 23:32:03.161537
++y
+
+# 2025-02-01 15:17:26.148174
++can you make the CreateVertexBuffer and createindexbuffer funtions in render_vulkan_v2.cpp
+
+# 2025-02-01 15:17:29.860406
++y
+
+# 2025-02-01 15:18:52.845323
++n
+
+# 2025-02-01 15:20:49.846079
++please do the createbuffer and copybuffer functions
+
+# 2025-02-01 15:21:58.933408
++y
+
+# 2025-02-01 15:22:31.044609
++n
+
+# 2025-02-01 15:24:11.830992
++/clear
+
+# 2025-02-01 20:08:12.606529
++can you brovide this but written in a more c oriented, non oop manner? struct Vertex {
++    glm::vec3 position;
++    glm::vec3 normal;
++    glm::vec2 texCoord;
++
++    static VkVertexInputBindingDescription getBindingDescription() {
++        VkVertexInputBindingDescription bindingDescription{};
++        bindingDescription.binding = 0;
++        bindingDescription.stride = sizeof(Vertex);
++        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
++        return bindingDescription;
++    }
++
++    static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions() {
++        std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
++        
++        // Position
++        attributeDescriptions[0].binding = 0;
++        attributeDescriptions[0].location = 0;
++        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[0].offset = offsetof(Vertex, position);
++
++        // Normal
++        attributeDescriptions[1].binding = 0;
++        attributeDescriptions[1].location = 1;
++        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[1].offset = offsetof(Vertex, normal);
++
++        // Texture Coordinate
++        attributeDescriptions[2].binding = 0;
++        attributeDescriptions[2].location = 2;
++        attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
++        attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
++
++        return attributeDescriptions;
++    }
++
++    bool operator==(const Vertex& other) const {
++        return position == other.position && 
++               normal == other.normal &&
++               texCoord == other.texCoord;
++    }
++};
+
+# 2025-02-01 20:09:45.053029
++o
+
+# 2025-02-01 20:10:20.931225
++j
+
+# 2025-02-01 20:10:23.850904
++n
+
+# 2025-02-01 20:11:59.593432
++actually, the code i want to replicate in the C style non oop manner is struct Vertex
++{
++    glm::vec3 pos;
++    glm::vec3 color;
++    glm::vec2 texCoord;
++    glm::vec3 normal;
++
++    mat4 modelMatrix;
++
++    static VkVertexInputBindingDescription getBindingDescription()
++    {
++        VkVertexInputBindingDescription bindingDescription{};
++        bindingDescription.binding = 0;
++        bindingDescription.stride = sizeof(Vertex);
++        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
++
++        return bindingDescription;
++    }
++
++    static std::array<VkVertexInputBindingDescription, 2>  getBindingDescriptions_instanced()
++    {
++        std::array<VkVertexInputBindingDescription, 2> bindingDescriptions{};
++        bindingDescriptions[0].binding = 0;
++        bindingDescriptions[0].stride = sizeof(Vertex);
++        bindingDescriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
++
++        bindingDescriptions[1].binding = 1;
++        bindingDescriptions[1].stride = sizeof(InstancedData);
++        bindingDescriptions[1].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
++
++        return bindingDescriptions;
++    }
++
++    static std::array<VkVertexInputAttributeDescription, 4> getAttributeDescriptions()
++    {
++        std::array<VkVertexInputAttributeDescription, 4> attributeDescriptions{};
++
++        attributeDescriptions[0].binding = 0;
++        attributeDescriptions[0].location = 0;
++        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[0].offset = offsetof(Vertex, pos);
++
++        attributeDescriptions[1].binding = 0;
++        attributeDescriptions[1].location = 1;
++        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[1].offset = offsetof(Vertex, color);
++
++        attributeDescriptions[2].binding = 0;
++        attributeDescriptions[2].location = 2;
++        attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
++        attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
++
++        attributeDescriptions[3].binding = 0;
++        attributeDescriptions[3].location = 3;
++        attributeDescriptions[3].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[3].offset = offsetof(Vertex, normal);
++
++        return attributeDescriptions;
++    }
++
++    static std::array<VkVertexInputAttributeDescription, 8> getAttributeDescriptions_instanced()
++    {
++        std::array<VkVertexInputAttributeDescription, 8> attributeDescriptions{};
++
++        attributeDescriptions[0].binding = 0;
++        attributeDescriptions[0].location = 0;
++        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[0].offset = offsetof(Vertex, pos);
++
++        attributeDescriptions[1].binding = 0;
++        attributeDescriptions[1].location = 1;
++        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[1].offset = offsetof(Vertex, color);
++
++        attributeDescriptions[2].binding = 0;
++        attributeDescriptions[2].location = 2;
++        attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
++        attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
++
++        attributeDescriptions[3].binding = 0;
++        attributeDescriptions[3].location = 3;
++        attributeDescriptions[3].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[3].offset = offsetof(Vertex, normal);
++
++        attributeDescriptions[4].binding = 1; // Assuming binding 1 for instance data
++        attributeDescriptions[4].location = 4;
++        attributeDescriptions[4].format = VK_FORMAT_R32G32B32A32_SFLOAT;
++        attributeDescriptions[4].offset = offsetof(InstancedData, modelMatrix) + sizeof(glm::vec4) * 0;
++
++        attributeDescriptions[5].binding = 1; // Assuming binding 1 for instance data
++        attributeDescriptions[5].location = 5;
++        attributeDescriptions[5].format = VK_FORMAT_R32G32B32A32_SFLOAT;
++        attributeDescriptions[5].offset = offsetof(InstancedData, modelMatrix) + sizeof(glm::vec4) * 1;
++
++        attributeDescriptions[6].binding = 1; // Assuming binding 1 for instance data
++        attributeDescriptions[6].location = 6;
++        attributeDescriptions[6].format = VK_FORMAT_R32G32B32A32_SFLOAT;
++        attributeDescriptions[6].offset = offsetof(InstancedData, modelMatrix) + sizeof(glm::vec4) * 2;
++
++        attributeDescriptions[7].binding = 1; // Assuming binding 1 for instance data
++        attributeDescriptions[7].location = 7;
++        attributeDescriptions[7].format = VK_FORMAT_R32G32B32A32_SFLOAT;
++        attributeDescriptions[7].offset = offsetof(InstancedData, modelMatrix) + sizeof(glm::vec4) * 3;
++
++        return attributeDescriptions;
++    }
++
++    bool operator==(const Vertex& other) const {
++        return pos == other.pos && color == other.color && texCoord == other.texCoord;
++    }
++};
++//
+
+# 2025-02-01 20:13:30.889762
++/clear
+
+# 2025-02-01 20:15:27.243145
++can you provide a c style non oop version of the vertex struct and put it in render_vulkan_v2.cpp
+
+# 2025-02-01 20:16:10.992201
++can you provide a c style non oop veriton of this vertex struct struct Vertex
++{
++    glm::vec3 pos;
++    glm::vec3 color;
++    glm::vec2 texCoord;
++    glm::vec3 normal;
++
++    mat4 modelMatrix;
++
++    static VkVertexInputBindingDescription getBindingDescription()
++    {
++        VkVertexInputBindingDescription bindingDescription{};
++        bindingDescription.binding = 0;
++        bindingDescription.stride = sizeof(Vertex);
++        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
++
++        return bindingDescription;
++    }
++
++    static std::array<VkVertexInputBindingDescription, 2>  getBindingDescriptions_instanced()
++    {
++        std::array<VkVertexInputBindingDescription, 2> bindingDescriptions{};
++        bindingDescriptions[0].binding = 0;
++        bindingDescriptions[0].stride = sizeof(Vertex);
++        bindingDescriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
++
++        bindingDescriptions[1].binding = 1;
++        bindingDescriptions[1].stride = sizeof(InstancedData);
++        bindingDescriptions[1].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
++
++        return bindingDescriptions;
++    }
++
++    static std::array<VkVertexInputAttributeDescription, 4> getAttributeDescriptions()
++    {
++        std::array<VkVertexInputAttributeDescription, 4> attributeDescriptions{};
++
++        attributeDescriptions[0].binding = 0;
++        attributeDescriptions[0].location = 0;
++        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[0].offset = offsetof(Vertex, pos);
++
++        attributeDescriptions[1].binding = 0;
++        attributeDescriptions[1].location = 1;
++        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[1].offset = offsetof(Vertex, color);
++
++        attributeDescriptions[2].binding = 0;
++        attributeDescriptions[2].location = 2;
++        attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
++        attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
++
++        attributeDescriptions[3].binding = 0;
++        attributeDescriptions[3].location = 3;
++        attributeDescriptions[3].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[3].offset = offsetof(Vertex, normal);
++
++        return attributeDescriptions;
++    }
++
++    static std::array<VkVertexInputAttributeDescription, 8> getAttributeDescriptions_instanced()
++    {
++        std::array<VkVertexInputAttributeDescription, 8> attributeDescriptions{};
++
++        attributeDescriptions[0].binding = 0;
++        attributeDescriptions[0].location = 0;
++        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[0].offset = offsetof(Vertex, pos);
++
++        attributeDescriptions[1].binding = 0;
++        attributeDescriptions[1].location = 1;
++        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[1].offset = offsetof(Vertex, color);
++
++        attributeDescriptions[2].binding = 0;
++        attributeDescriptions[2].location = 2;
++        attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
++        attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
++
++        attributeDescriptions[3].binding = 0;
++        attributeDescriptions[3].location = 3;
++        attributeDescriptions[3].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[3].offset = offsetof(Vertex, normal);
++
++        attributeDescriptions[4].binding = 1; // Assuming binding 1 for instance data
++        attributeDescriptions[4].location = 4;
++        attributeDescriptions[4].format = VK_FORMAT_R32G32B32A32_SFLOAT;
++        attributeDescriptions[4].offset = offsetof(InstancedData, modelMatrix) + sizeof(glm::vec4) * 0;
++
++        attributeDescriptions[5].binding = 1; // Assuming binding 1 for instance data
++        attributeDescriptions[5].location = 5;
++        attributeDescriptions[5].format = VK_FORMAT_R32G32B32A32_SFLOAT;
++        attributeDescriptions[5].offset = offsetof(InstancedData, modelMatrix) + sizeof(glm::vec4) * 1;
++
++        attributeDescriptions[6].binding = 1; // Assuming binding 1 for instance data
++        attributeDescriptions[6].location = 6;
++        attributeDescriptions[6].format = VK_FORMAT_R32G32B32A32_SFLOAT;
++        attributeDescriptions[6].offset = offsetof(InstancedData, modelMatrix) + sizeof(glm::vec4) * 2;
++
++        attributeDescriptions[7].binding = 1; // Assuming binding 1 for instance data
++        attributeDescriptions[7].location = 7;
++        attributeDescriptions[7].format = VK_FORMAT_R32G32B32A32_SFLOAT;
++        attributeDescriptions[7].offset = offsetof(InstancedData, modelMatrix) + sizeof(glm::vec4) * 3;
++
++        return attributeDescriptions;
++    }
++
++    bool operator==(const Vertex& other) const {
++        return pos == other.pos && color == other.color && texCoord == other.texCoord;
++    }
++};
++// this will be added to src\render\render_vulkan_v2.cpp
+
+# 2025-02-01 20:16:12.566687
++y
+
+# 2025-02-01 20:17:48.935709
++can you provide a c style non oop veriton of this vertex struct struct Vertex
++{
++    glm::vec3 pos;
++    glm::vec3 color;
++    glm::vec2 texCoord;
++    glm::vec3 normal;
++
++    mat4 modelMatrix;
++
++    static VkVertexInputBindingDescription getBindingDescription()
++    {
++        VkVertexInputBindingDescription bindingDescription{};
++        bindingDescription.binding = 0;
++        bindingDescription.stride = sizeof(Vertex);
++        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
++
++        return bindingDescription;
++    }
++
++    static std::array<VkVertexInputBindingDescription, 2>  getBindingDescriptions_instanced()
++    {
++        std::array<VkVertexInputBindingDescription, 2> bindingDescriptions{};
++        bindingDescriptions[0].binding = 0;
++        bindingDescriptions[0].stride = sizeof(Vertex);
++        bindingDescriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
++
++        bindingDescriptions[1].binding = 1;
++        bindingDescriptions[1].stride = sizeof(InstancedData);
++        bindingDescriptions[1].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
++
++        return bindingDescriptions;
++    }
++
++    static std::array<VkVertexInputAttributeDescription, 4> getAttributeDescriptions()
++    {
++        std::array<VkVertexInputAttributeDescription, 4> attributeDescriptions{};
++
++        attributeDescriptions[0].binding = 0;
++        attributeDescriptions[0].location = 0;
++        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[0].offset = offsetof(Vertex, pos);
++
++        attributeDescriptions[1].binding = 0;
++        attributeDescriptions[1].location = 1;
++        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[1].offset = offsetof(Vertex, color);
++
++        attributeDescriptions[2].binding = 0;
++        attributeDescriptions[2].location = 2;
++        attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
++        attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
++
++        attributeDescriptions[3].binding = 0;
++        attributeDescriptions[3].location = 3;
++        attributeDescriptions[3].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[3].offset = offsetof(Vertex, normal);
++
++        return attributeDescriptions;
++    }
++
++    static std::array<VkVertexInputAttributeDescription, 8> getAttributeDescriptions_instanced()
++    {
++        std::array<VkVertexInputAttributeDescription, 8> attributeDescriptions{};
++
++        attributeDescriptions[0].binding = 0;
++        attributeDescriptions[0].location = 0;
++        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[0].offset = offsetof(Vertex, pos);
++
++        attributeDescriptions[1].binding = 0;
++        attributeDescriptions[1].location = 1;
++        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[1].offset = offsetof(Vertex, color);
++
++        attributeDescriptions[2].binding = 0;
++        attributeDescriptions[2].location = 2;
++        attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
++        attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
++
++        attributeDescriptions[3].binding = 0;
++        attributeDescriptions[3].location = 3;
++        attributeDescriptions[3].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[3].offset = offsetof(Vertex, normal);
++
++        attributeDescriptions[4].binding = 1; // Assuming binding 1 for instance data
++        attributeDescriptions[4].location = 4;
++        attributeDescriptions[4].format = VK_FORMAT_R32G32B32A32_SFLOAT;
++        attributeDescriptions[4].offset = offsetof(InstancedData, modelMatrix) + sizeof(glm::vec4) * 0;
++
++        attributeDescriptions[5].binding = 1; // Assuming binding 1 for instance data
++        attributeDescriptions[5].location = 5;
++        attributeDescriptions[5].format = VK_FORMAT_R32G32B32A32_SFLOAT;
++        attributeDescriptions[5].offset = offsetof(InstancedData, modelMatrix) + sizeof(glm::vec4) * 1;
++
++        attributeDescriptions[6].binding = 1; // Assuming binding 1 for instance data
++        attributeDescriptions[6].location = 6;
++        attributeDescriptions[6].format = VK_FORMAT_R32G32B32A32_SFLOAT;
++        attributeDescriptions[6].offset = offsetof(InstancedData, modelMatrix) + sizeof(glm::vec4) * 2;
++
++        attributeDescriptions[7].binding = 1; // Assuming binding 1 for instance data
++        attributeDescriptions[7].location = 7;
++        attributeDescriptions[7].format = VK_FORMAT_R32G32B32A32_SFLOAT;
++        attributeDescriptions[7].offset = offsetof(InstancedData, modelMatrix) + sizeof(glm::vec4) * 3;
++
++        return attributeDescriptions;
++    }
++
++    bool operator==(const Vertex& other) const {
++        return pos == other.pos && color == other.color && texCoord == other.texCoord;
++    }
++};
++// this will be added to src\render\render_vulkan_v2.cpp
+
+# 2025-02-01 20:18:58.938058
++/clear
+
+# 2025-02-01 20:20:04.240006
++src\render\render_vulkan_v2.cpp
+
+# 2025-02-01 20:20:05.136378
++y
+
+# 2025-02-01 20:22:24.910279
++can you in a c style non oop style update this struct, struct Vertex
++{
++    glm::vec3 pos;
++    glm::vec3 color;
++    glm::vec2 texCoord;
++    glm::vec3 normal;
++
++    mat4 modelMatrix;
++
++    static VkVertexInputBindingDescription getBindingDescription()
++    {
++        VkVertexInputBindingDescription bindingDescription{};
++        bindingDescription.binding = 0;
++        bindingDescription.stride = sizeof(Vertex);
++        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
++
++        return bindingDescription;
++    }
++
++    static std::array<VkVertexInputBindingDescription, 2>  getBindingDescriptions_instanced()
++    {
++        std::array<VkVertexInputBindingDescription, 2> bindingDescriptions{};
++        bindingDescriptions[0].binding = 0;
++        bindingDescriptions[0].stride = sizeof(Vertex);
++        bindingDescriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
++
++        bindingDescriptions[1].binding = 1;
++        bindingDescriptions[1].stride = sizeof(InstancedData);
++        bindingDescriptions[1].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
++
++        return bindingDescriptions;
++    }
++
++    static std::array<VkVertexInputAttributeDescription, 4> getAttributeDescriptions()
++    {
++        std::array<VkVertexInputAttributeDescription, 4> attributeDescriptions{};
++
++        attributeDescriptions[0].binding = 0;
++        attributeDescriptions[0].location = 0;
++        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[0].offset = offsetof(Vertex, pos);
++
++        attributeDescriptions[1].binding = 0;
++        attributeDescriptions[1].location = 1;
++        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[1].offset = offsetof(Vertex, color);
++
++        attributeDescriptions[2].binding = 0;
++        attributeDescriptions[2].location = 2;
++        attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
++        attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
++
++        attributeDescriptions[3].binding = 0;
++        attributeDescriptions[3].location = 3;
++        attributeDescriptions[3].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[3].offset = offsetof(Vertex, normal);
++
++        return attributeDescriptions;
++    }
++
++    static std::array<VkVertexInputAttributeDescription, 8> getAttributeDescriptions_instanced()
++    {
++        std::array<VkVertexInputAttributeDescription, 8> attributeDescriptions{};
++
++        attributeDescriptions[0].binding = 0;
++        attributeDescriptions[0].location = 0;
++        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[0].offset = offsetof(Vertex, pos);
++
++        attributeDescriptions[1].binding = 0;
++        attributeDescriptions[1].location = 1;
++        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[1].offset = offsetof(Vertex, color);
++
++        attributeDescriptions[2].binding = 0;
++        attributeDescriptions[2].location = 2;
++        attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
++        attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
++
++        attributeDescriptions[3].binding = 0;
++        attributeDescriptions[3].location = 3;
++        attributeDescriptions[3].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[3].offset = offsetof(Vertex, normal);
++
++        attributeDescriptions[4].binding = 1; // Assuming binding 1 for instance data
++        attributeDescriptions[4].location = 4;
++        attributeDescriptions[4].format = VK_FORMAT_R32G32B32A32_SFLOAT;
++        attributeDescriptions[4].offset = offsetof(InstancedData, modelMatrix) + sizeof(glm::vec4) * 0;
++
++        attributeDescriptions[5].binding = 1; // Assuming binding 1 for instance data
++        attributeDescriptions[5].location = 5;
++        attributeDescriptions[5].format = VK_FORMAT_R32G32B32A32_SFLOAT;
++        attributeDescriptions[5].offset = offsetof(InstancedData, modelMatrix) + sizeof(glm::vec4) * 1;
++
++        attributeDescriptions[6].binding = 1; // Assuming binding 1 for instance data
++        attributeDescriptions[6].location = 6;
++        attributeDescriptions[6].format = VK_FORMAT_R32G32B32A32_SFLOAT;
++        attributeDescriptions[6].offset = offsetof(InstancedData, modelMatrix) + sizeof(glm::vec4) * 2;
++
++        attributeDescriptions[7].binding = 1; // Assuming binding 1 for instance data
++        attributeDescriptions[7].location = 7;
++        attributeDescriptions[7].format = VK_FORMAT_R32G32B32A32_SFLOAT;
++        attributeDescriptions[7].offset = offsetof(InstancedData, modelMatrix) + sizeof(glm::vec4) * 3;
++
++        return attributeDescriptions;
++    }
++
++    bool operator==(const Vertex& other) const {
++        return pos == other.pos && color == other.color && texCoord == other.texCoord;
++    }
++};
+
+# 2025-02-01 20:24:18.783538
++can you update this struct to a c style non oop version? struct Vertex
++{
++    glm::vec3 pos;
++    glm::vec3 color;
++    glm::vec2 texCoord;
++    glm::vec3 normal;
++
++    mat4 modelMatrix;
++
++    static VkVertexInputBindingDescription getBindingDescription()
++    {
++        VkVertexInputBindingDescription bindingDescription{};
++        bindingDescription.binding = 0;
++        bindingDescription.stride = sizeof(Vertex);
++        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
++
++        return bindingDescription;
++    }
++
++    static std::array<VkVertexInputBindingDescription, 2>  getBindingDescriptions_instanced()
++    {
++        std::array<VkVertexInputBindingDescription, 2> bindingDescriptions{};
++        bindingDescriptions[0].binding = 0;
++        bindingDescriptions[0].stride = sizeof(Vertex);
++        bindingDescriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
++
++        bindingDescriptions[1].binding = 1;
++        bindingDescriptions[1].stride = sizeof(InstancedData);
++        bindingDescriptions[1].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
++
++        return bindingDescriptions;
++    }
++
++    static std::array<VkVertexInputAttributeDescription, 4> getAttributeDescriptions()
++    {
++        std::array<VkVertexInputAttributeDescription, 4> attributeDescriptions{};
++
++        attributeDescriptions[0].binding = 0;
++        attributeDescriptions[0].location = 0;
++        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[0].offset = offsetof(Vertex, pos);
++
++        attributeDescriptions[1].binding = 0;
++        attributeDescriptions[1].location = 1;
++        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[1].offset = offsetof(Vertex, color);
++
++        attributeDescriptions[2].binding = 0;
++        attributeDescriptions[2].location = 2;
++        attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
++        attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
++
++        attributeDescriptions[3].binding = 0;
++        attributeDescriptions[3].location = 3;
++        attributeDescriptions[3].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[3].offset = offsetof(Vertex, normal);
++
++        return attributeDescriptions;
++    }
++
++    static std::array<VkVertexInputAttributeDescription, 8> getAttributeDescriptions_instanced()
++    {
++        std::array<VkVertexInputAttributeDescription, 8> attributeDescriptions{};
++
++        attributeDescriptions[0].binding = 0;
++        attributeDescriptions[0].location = 0;
++        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[0].offset = offsetof(Vertex, pos);
++
++        attributeDescriptions[1].binding = 0;
++        attributeDescriptions[1].location = 1;
++        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[1].offset = offsetof(Vertex, color);
++
++        attributeDescriptions[2].binding = 0;
++        attributeDescriptions[2].location = 2;
++        attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
++        attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
++
++        attributeDescriptions[3].binding = 0;
++        attributeDescriptions[3].location = 3;
++        attributeDescriptions[3].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[3].offset = offsetof(Vertex, normal);
++
++        attributeDescriptions[4].binding = 1; // Assuming binding 1 for instance data
++        attributeDescriptions[4].location = 4;
++        attributeDescriptions[4].format = VK_FORMAT_R32G32B32A32_SFLOAT;
++        attributeDescriptions[4].offset = offsetof(InstancedData, modelMatrix) + sizeof(glm::vec4) * 0;
++
++        attributeDescriptions[5].binding = 1; // Assuming binding 1 for instance data
++        attributeDescriptions[5].location = 5;
++        attributeDescriptions[5].format = VK_FORMAT_R32G32B32A32_SFLOAT;
++        attributeDescriptions[5].offset = offsetof(InstancedData, modelMatrix) + sizeof(glm::vec4) * 1;
++
++        attributeDescriptions[6].binding = 1; // Assuming binding 1 for instance data
++        attributeDescriptions[6].location = 6;
++        attributeDescriptions[6].format = VK_FORMAT_R32G32B32A32_SFLOAT;
++        attributeDescriptions[6].offset = offsetof(InstancedData, modelMatrix) + sizeof(glm::vec4) * 2;
++
++        attributeDescriptions[7].binding = 1; // Assuming binding 1 for instance data
++        attributeDescriptions[7].location = 7;
++        attributeDescriptions[7].format = VK_FORMAT_R32G32B32A32_SFLOAT;
++        attributeDescriptions[7].offset = offsetof(InstancedData, modelMatrix) + sizeof(glm::vec4) * 3;
++
++        return attributeDescriptions;
++    }
++
++    bool operator==(const Vertex& other) const {
++        return pos == other.pos && color == other.color && texCoord == other.texCoord;
++    }
++}; it is in src\render\render_vulkan_v2.cpp
+
+# 2025-02-01 20:24:20.258177
++y
+
+# 2025-02-01 20:24:58.378795
++can you update this struct to a c style non oop version? struct Vertex
++{
++    glm::vec3 pos;
++    glm::vec3 color;
++    glm::vec2 texCoord;
++    glm::vec3 normal;
++
++    mat4 modelMatrix;
++
++    static VkVertexInputBindingDescription getBindingDescription()
++    {
++        VkVertexInputBindingDescription bindingDescription{};
++        bindingDescription.binding = 0;
++        bindingDescription.stride = sizeof(Vertex);
++        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
++
++        return bindingDescription;
++    }
++
++    static std::array<VkVertexInputBindingDescription, 2>  getBindingDescriptions_instanced()
++    {
++        std::array<VkVertexInputBindingDescription, 2> bindingDescriptions{};
++        bindingDescriptions[0].binding = 0;
++        bindingDescriptions[0].stride = sizeof(Vertex);
++        bindingDescriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
++
++        bindingDescriptions[1].binding = 1;
++        bindingDescriptions[1].stride = sizeof(InstancedData);
++        bindingDescriptions[1].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
++
++        return bindingDescriptions;
++    }
++
++    static std::array<VkVertexInputAttributeDescription, 4> getAttributeDescriptions()
++    {
++        std::array<VkVertexInputAttributeDescription, 4> attributeDescriptions{};
++
++        attributeDescriptions[0].binding = 0;
++        attributeDescriptions[0].location = 0;
++        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[0].offset = offsetof(Vertex, pos);
++
++        attributeDescriptions[1].binding = 0;
++        attributeDescriptions[1].location = 1;
++        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[1].offset = offsetof(Vertex, color);
++
++        attributeDescriptions[2].binding = 0;
++        attributeDescriptions[2].location = 2;
++        attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
++        attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
++
++        attributeDescriptions[3].binding = 0;
++        attributeDescriptions[3].location = 3;
++        attributeDescriptions[3].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[3].offset = offsetof(Vertex, normal);
++
++        return attributeDescriptions;
++    }
++
++    static std::array<VkVertexInputAttributeDescription, 8> getAttributeDescriptions_instanced()
++    {
++        std::array<VkVertexInputAttributeDescription, 8> attributeDescriptions{};
++
++        attributeDescriptions[0].binding = 0;
++        attributeDescriptions[0].location = 0;
++        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[0].offset = offsetof(Vertex, pos);
++
++        attributeDescriptions[1].binding = 0;
++        attributeDescriptions[1].location = 1;
++        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[1].offset = offsetof(Vertex, color);
++
++        attributeDescriptions[2].binding = 0;
++        attributeDescriptions[2].location = 2;
++        attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
++        attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
++
++        attributeDescriptions[3].binding = 0;
++        attributeDescriptions[3].location = 3;
++        attributeDescriptions[3].format = VK_FORMAT_R32G32B32_SFLOAT;
++        attributeDescriptions[3].offset = offsetof(Vertex, normal);
++
++        attributeDescriptions[4].binding = 1; // Assuming binding 1 for instance data
++        attributeDescriptions[4].location = 4;
++        attributeDescriptions[4].format = VK_FORMAT_R32G32B32A32_SFLOAT;
++        attributeDescriptions[4].offset = offsetof(InstancedData, modelMatrix) + sizeof(glm::vec4) * 0;
++
++        attributeDescriptions[5].binding = 1; // Assuming binding 1 for instance data
++        attributeDescriptions[5].location = 5;
++        attributeDescriptions[5].format = VK_FORMAT_R32G32B32A32_SFLOAT;
++        attributeDescriptions[5].offset = offsetof(InstancedData, modelMatrix) + sizeof(glm::vec4) * 1;
++
++        attributeDescriptions[6].binding = 1; // Assuming binding 1 for instance data
++        attributeDescriptions[6].location = 6;
++        attributeDescriptions[6].format = VK_FORMAT_R32G32B32A32_SFLOAT;
++        attributeDescriptions[6].offset = offsetof(InstancedData, modelMatrix) + sizeof(glm::vec4) * 2;
++
++        attributeDescriptions[7].binding = 1; // Assuming binding 1 for instance data
++        attributeDescriptions[7].location = 7;
++        attributeDescriptions[7].format = VK_FORMAT_R32G32B32A32_SFLOAT;
++        attributeDescriptions[7].offset = offsetof(InstancedData, modelMatrix) + sizeof(glm::vec4) * 3;
++
++        return attributeDescriptions;
++    }
++
++    bool operator==(const Vertex& other) const {
++        return pos == other.pos && color == other.color && texCoord == other.texCoord;
++    }
++}; it is in src\render\render_vulkan_v2.cpp
+
+# 2025-02-01 20:25:00.241224
++y
+
+# 2025-02-01 20:25:24.259598
++o
+
+# 2025-02-01 20:25:28.309615
++y
+
+# 2025-02-01 20:25:51.580918
++j
+
+# 2025-02-01 20:25:55.983762
++n
+
+# 2025-02-01 20:26:51.237039
++i am now getting the error std::vector<Vertex> vkVertices; for struct MyVulkanData in src\zayn.h
+
+# 2025-02-01 20:26:51.912070
++y
+
+# 2025-02-01 20:27:04.137716
++n
+
+# 2025-02-01 20:40:00.557821
++I am working to code a game engine in C heavy,non oop code. i want to create and render 3d game object. why this error? Severity	Code	Description	Project	File	Line	Suppression State	Details
++Error	C2280	'std::_Uhash_compare<_Kty,_Hasher,_Keyeq>::_Uhash_compare(const std::_Uhash_compare<_Kty,_Hasher,_Keyeq> &)': attempting to reference a deleted function
++        with
++        [
++            _Kty=Vertex,
++            _Hasher=std::hash<Vertex>,
++            _Keyeq=std::equal_to<Vertex>
++        ]	Zayn_PC	C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.38.33130\include\unordered_map	49		
++in src\render\render_vulkan_v2.cpp
+
+# 2025-02-01 20:40:02.209292
++y
+
+# 2025-02-01 20:56:37.902979
++i need a fix for the loadmodel function 
+
+# 2025-02-01 21:05:07.594621
++please provide correct way to call loadmodel in this code render_vulkan_v2.cpp
+
+# 2025-02-01 21:05:08.452765
++y
+
+# 2025-02-01 21:06:14.015350
++n
+
+# 2025-02-01 21:10:14.387091
++/cle
+
+# 2025-02-01 21:10:26.820830
++src\render\render_vulkan.h
+
+# 2025-02-01 21:10:27.928101
++y
+
+# 2025-02-01 21:10:51.450995
++n
+
+# 2025-02-01 21:12:21.411324
++the issue is that i am getting this error Severity	Code	Description	Project	File	Line	Suppression State	Details
++Error (active)	E1790	the default constructor of "std::hash<glm::vec2>" (aka "std::hash<glm::vec<2, float, glm::packed_highp>>") cannot be referenced -- it is a deleted function	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan.h	65		
++Severity	Code	Description	Project	File	Line	Suppression State	Details
++Error	C2064	term does not evaluate to a function taking 1 arguments	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan.h	63		
++
+
+# 2025-02-01 21:12:49.763440
++y
+
+# 2025-02-01 21:15:46.853354
++render_vulkan_v2.cpp
+
+# 2025-02-01 21:15:47.789623
++y
+
+# 2025-02-01 21:18:54.280699
++n
+
+# 2025-02-01 21:22:17.966969
++/clear
+
+# 2025-02-01 21:22:48.165303
++I am working to code a game engine in C heavy,non oop code. i want to create and render 3d game objects. what is the next step to create and render game objects
+
+# 2025-02-01 21:27:06.482143
++render_vulkan_v2.cpp
+
+# 2025-02-01 21:27:09.709632
++y
+
+# 2025-02-01 21:28:30.660549
++I am working to code a game engine in C heavy,non oop code. i want to create and render 3d game objects. what is the next step to create and render game objects
+
+# 2025-02-01 21:31:06.588225
++I am working to code a game engine in C heavy, non oop code. i want to create and render 3d game objects. render_vulkan_v2.cpp
+
+# 2025-02-01 21:31:07.470557
++y
+
+# 2025-02-01 21:31:52.855697
++render_vulkan_v2.cpp
+
+# 2025-02-01 21:31:53.531383
++y
+
+# 2025-02-01 21:32:01.812680
++n
+
+# 2025-02-01 21:32:02.748686
++I am working to code a game engine in C heavy, non oop code. i want to create and render 3d game objects.
+
+# 2025-02-01 21:32:18.572811
++src\zayn.h
+
+# 2025-02-01 21:32:20.830748
++y
+
+# 2025-02-01 21:33:33.909475
++now i need help on what these functions will look like in my cpp file, how do i execute them? can you also pprovide the structure on how to actullly implement them?
+
+# 2025-02-01 21:33:52.869823
++y
+
+# 2025-02-01 21:34:35.960442
++n
+
+# 2025-02-01 21:35:44.792723
++now in `InitializeGameObject` create game objects, then in `UpdateRender_Vulkan` render them.
+
+# 2025-02-01 21:36:06.151153
++y
+
+# 2025-02-01 21:38:00.413708
++n
+
+# 2025-02-01 21:38:09.347211
++in this code i get the following errer missing renderer set: 0
+
+# 2025-02-01 21:39:19.090115
++y
+
+# 2025-02-01 21:40:37.591040
++n
+
+# 2025-02-01 21:40:39.087257
++The Vulkan spec states: If the pipeline requires fragment output interface state, and the VK_EXT_extended_dynamic_state3 extension is not enabled or any of the VK_DYNAMIC_STATE_RASTERIZATION_SAMPLES_EXT, VK_DYNAMIC_STATE_SAMPLE_MASK_EXT, or VK_DYNAMIC_STATE_ALPHA_TO_COVERAGE_ENABLE_EXT dynamic states is not set, or alphaToOne is enabled on the device and VK_DYNAMIC_STATE_ALPHA_TO_ONE_ENABLE_EXT is not set, pMultisampleState must be a valid pointer to a valid VkPipelineMultisampleStateCreateInfo structure (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-VkGraphicsPipelineCreateInfo-pMultisampleState-09026)
++validation layer: Validation Performance Warning: [ WARNING-Shader-OutputNotConsumed ] Object 0: handle = 0xa2eb680000000026, type = VK_OBJECT_TYPE_SHADER_MODULE; | MessageID = 0xc81ad50e | vkCreateGraphicsPipelines(): pCreateInfos[0].pVertexInputState Vertex attribute at location 0 not consumed by vertex shader.
++validation layer: Validation Performance Warning: [ WARNING-Shader-OutputNotConsumed ] Object 0: handle = 0xa2eb680000000026, type = VK_OBJECT_TYPE_SHADER_MODULE; | MessageID = 0xc81ad50e | vkCreateGraphicsPipelines(): pCreateInfos[0].pVertexInputState Vertex attribute at location 1 not consumed by vertex shader.
++validation layer: Validation Performance Warning: [ WARNING-Shader-OutputNotConsumed ] Object 0: handle = 0xa2eb680000000026, type = VK_OBJECT_TYPE_SHADER_MODULE; | MessageID = 0xc81ad50e | vkCreateGraphicsPipelines(): pCreateInfos[0].pVertexInputState Vertex attribute at location 2 not consumed by vertex shader.
++validation layer: Validation Error: [ UNASSIGNED-GeneralParameterError-RequiredHandle ] | MessageID = 0x8fdcb17b | vkAllocateDescriptorSets(): pAllocateInfo->descriptorPool is VK_NULL_HANDLE.
++validation layer: Validation Error: [ VUID-VkDescriptorSetAllocateInfo-descriptorPool-parameter ] Object 0: handle = 0x16340f7c310, type = VK_OBJECT_TYPE_INSTANCE; | MessageID = 0x81317a73 | vkAllocateDescriptorSets(): pAllocateInfo->descriptorPool Invalid VkDescriptorPool Object 0x0.
++The Vulkan spec states: descriptorPool must be a valid VkDescriptorPool handle (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-VkDescriptorSetAllocateInfo-descriptorPool-parameter)
+
+# 2025-02-01 21:40:44.012978
++n
+
+# 2025-02-01 21:41:09.126514
++y
+
+# 2025-02-01 21:41:44.839205
++n
+
+# 2025-02-01 21:41:49.647394
++can you provide CreateDescriptorPool(zaynMem);
+
+# 2025-02-01 21:42:05.861415
++y
+
+# 2025-02-01 21:43:02.249287
++n
+
+# 2025-02-01 21:43:05.830927
++/clear
+
+# 2025-02-01 21:43:09.444829
++
++validation layer: Validation Error: [ UNASSIGNED-GeneralParameterError-RequiredHandle ] | MessageID = 0x8fdcb17b | vkCreateFramebuffer(): pCreateInfo->renderPass is VK_NULL_HANDLE.
++validation layer: Validation Error: [ VUID-VkFramebufferCreateInfo-renderPass-parameter ] Object 0: handle = 0x28b7bc21ca0, type = VK_OBJECT_TYPE_INSTANCE; | MessageID = 0x98a2a472 | vkCreateFramebuffer(): pCreateInfo->renderPass Invalid VkRenderPass Object 0x0.
++The Vulkan spec states: renderPass must be a valid VkRenderPass handle (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-VkFramebufferCreateInfo-renderPass-parameter)
++validation layer: Validation Error: [ UNASSIGNED-GeneralParameterError-RequiredHandle ] | MessageID = 0x8fdcb17b | vkCreateFramebuffer(): pCreateInfo->renderPass is VK_NULL_HANDLE.
++validation layer: Validation Error: [ VUID-VkFramebufferCreateInfo-renderPass-parameter ] Object 0: handle = 0x28b7bc21ca0, type = VK_OBJECT_TYPE_INSTANCE; | MessageID = 0x98a2a472 | vkCreateFramebuffer(): pCreateInfo->renderPass Invalid VkRenderPass Object 0x0.
++The Vulkan spec states: renderPass must be a valid VkRenderPass handle (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-VkFramebufferCreateInfo-renderPass-parameter)
++validation layer: Validation Error: [ UNASSIGNED-GeneralParameterError-RequiredHandle ] | MessageID = 0x8fdcb17b | vkCreateFramebuffer(): pCreateInfo->renderPass is VK_NULL_HANDLE.
++validation layer: Validation Error: [ VUID-VkFramebufferCreateInfo-renderPass-parameter ] Object 0: handle = 0x28b7bc21ca0, type = VK_OBJECT_TYPE_INSTANCE; | MessageID = 0x98a2a472 | vkCreateFramebuffer(): pCreateInfo->renderPass Invalid VkRenderPass Object 0x0.
++The Vulkan spec states: renderPass must be a valid VkRenderPass handle (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-VkFramebufferCreateInfo-renderPass-parameter)
++Render pass created successfully.
++validation layer: Validation Error: [ VUID-VkGraphicsPipelineCreateInfo-renderPass-09028 ] Object 0: handle = 0x908683000000001d, type = VK_OBJECT_TYPE_RENDER_PASS; | MessageID = 0x4d0c2b9f | vkCreateGraphicsPipelines(): pCreateInfos[0].pDepthStencilState is NULL when rasterization is enabled and subpass 0 uses a depth/stencil attachment.
++The Vulkan spec states: If renderPass is not VK_NULL_HANDLE, the pipeline is being created with fragment shader state, and subpass uses a depth/stencil attachment, and related dynamic state is not set, pDepthStencilState must be a valid pointer to a valid VkPipelineDepthStencilStateCreateInfo structure (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-VkGraphicsPipelineCreateInfo-renderPass-09028)
++validation layer: Validation Performance Warning: [ WARNING-Shader-OutputNotConsumed ] Object 0: handle = 0xb097c90000000027, type = VK_OBJECT_TYPE_SHADER_MODULE; | MessageID = 0xc81ad50e | vkCreateGraphicsPipelines(): pCreateInfos[0].pVertexInputState Vertex attribute at location 0 not consumed by vertex shader.
++validation layer: Validation Performance Warning: [ WARNING-Shader-OutputNotConsumed ] Object 0: handle = 0xb097c90000000027, type = VK_OBJECT_TYPE_SHADER_MODULE; | MessageID = 0xc81ad50e | vkCreateGraphicsPipelines(): pCreateInfos[0].pVertexInputState Vertex attribute at location 1 not consumed by vertex shader.
++validation layer: Validation Performance Warning: [ WARNING-Shader-OutputNotConsumed ] Object 0: handle = 0xb097c90000000027, type = VK_OBJECT_TYPE_SHADER_MODULE; | MessageID = 0xc81ad50e | vkCreateGraphicsPipelines(): pCreateInfos[0].pVertexInputState Vertex attribute at location 2 not consumed by vertex shader.
++
+
+# 2025-02-01 21:43:10.797192
++n
+
+# 2025-02-01 21:43:23.553138
++y
+
+# 2025-02-01 21:44:32.190907
++n
+
+# 2025-02-01 21:44:33.466659
++validation layer: Validation Error: [ UNASSIGNED-GeneralParameterError-RequiredHandle ] | MessageID = 0x8fdcb17b | vkCreateFramebuffer(): pCreateInfo->renderPass is VK_NULL_HANDLE.
++validation layer: Validation Error: [ VUID-VkFramebufferCreateInfo-renderPass-parameter ] Object 0: handle = 0x1ea4f9713a0, type = VK_OBJECT_TYPE_INSTANCE; | MessageID = 0x98a2a472 | vkCreateFramebuffer(): pCreateInfo->renderPass Invalid VkRenderPass Object 0x0.
++The Vulkan spec states: renderPass must be a valid VkRenderPass handle (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-VkFramebufferCreateInfo-renderPass-parameter)
++validation layer: Validation Error: [ UNASSIGNED-GeneralParameterError-RequiredHandle ] | MessageID = 0x8fdcb17b | vkCreateFramebuffer(): pCreateInfo->renderPass is VK_NULL_HANDLE.
++validation layer: Validation Error: [ VUID-VkFramebufferCreateInfo-renderPass-parameter ] Object 0: handle = 0x1ea4f9713a0, type = VK_OBJECT_TYPE_INSTANCE; | MessageID = 0x98a2a472 | vkCreateFramebuffer(): pCreateInfo->renderPass Invalid VkRenderPass Object 0x0.
++The Vulkan spec states: renderPass must be a valid VkRenderPass handle (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-VkFramebufferCreateInfo-renderPass-parameter)
++validation layer: Validation Error: [ UNASSIGNED-GeneralParameterError-RequiredHandle ] | MessageID = 0x8fdcb17b | vkCreateFramebuffer(): pCreateInfo->renderPass is VK_NULL_HANDLE.
++validation layer: Validation Error: [ VUID-VkFramebufferCreateInfo-renderPass-parameter ] Object 0: handle = 0x1ea4f9713a0, type = VK_OBJECT_TYPE_INSTANCE; | MessageID = 0x98a2a472 | vkCreateFramebuffer(): pCreateInfo->renderPass Invalid VkRenderPass Object 0x0.
++The Vulkan spec states: renderPass must be a valid VkRenderPass handle (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-VkFramebufferCreateInfo-renderPass-parameter)
++Render pass created successfully.
++validation layer: Validation Performance Warning: [ WARNING-Shader-OutputNotConsumed ] Object 0: handle = 0xb097c90000000027, type = VK_OBJECT_TYPE_SHADER_MODULE; | MessageID = 0xc81ad50e | vkCreateGraphicsPipelines(): pCreateInfos[0].pVertexInputState Vertex attribute at location 0 not consumed by vertex shader.
++validation layer: Validation Performance Warning: [ WARNING-Shader-OutputNotConsumed ] Object 0: handle = 0xb097c90000000027, type = VK_OBJECT_TYPE_SHADER_MODULE; | MessageID = 0xc81ad50e | vkCreateGraphicsPipelines(): pCreateInfos[0].pVertexInputState Vertex attribute at location 1 not consumed by vertex shader.
++validation layer: Validation Performance Warning: [ WARNING-Shader-OutputNotConsumed ] Object 0: handle = 0xb097c90000000027, type = VK_OBJECT_TYPE_SHADER_MODULE; | MessageID = 0xc81ad50e | vkCreateGraphicsPipelines(): pCreateInfos[0].pVertexInputState Vertex attribute at location 2 not consumed by vertex shader.
+
+# 2025-02-01 21:44:45.831142
++y
+
+# 2025-02-01 21:47:20.266315
++Program: D:\dev_d\Zayn_PC\x64\Debug\Zayn_PC.exe
++File: C:\Program Files\Microsoft Visual
++Studio\2022\Community\VC\Tools\MSVC\14.38.33130\include\
++vector
++Line: 1894
++
++Expression: vector subscript out of range
++
++For information on how your program can cause an assertion
++failure, see the Visual C++ documentation on asserts.
+
+# 2025-02-01 21:47:22.999534
++n
+
+# 2025-02-01 21:47:23.879077
++Program: D:\dev_d\Zayn_PC\x64\Debug\Zayn_PC.exe
++File: C:\Program Files\Microsoft Visual
++Studio\2022\Community\VC\Tools\MSVC\14.38.33130\include\
++vector
++Line: 1894
++
++Expression: vector subscript out of range
++
++For information on how your program can cause an assertion
++failure, see the Visual C++ documentation on asserts.
+
+# 2025-02-01 21:47:39.830224
++y
+
+# 2025-02-01 21:48:32.224731
++n
+
+# 2025-02-01 21:48:52.362277
++in my code i get this error Program: D:\dev_d\Zayn_PC\x64\Debug\Zayn_PC.exe
++File: C:\Program Files\Microsoft Visual
++Studio\2022\Community\VC\Tools\MSVC\14.38.33130\include\
++vector
++Line: 1894
++
++Expression: vector subscript out of range
++
++For information on how your program can cause an assertion
++failure, see the Visual C++ documentation on asserts.  render_vulkan_v2.cpp
+
+# 2025-02-01 21:48:52.993452
++y
+
+# 2025-02-01 21:50:10.739753
++render_vulkan_v2.cpp
+
+# 2025-02-01 21:50:11.788186
++y
+
+# 2025-02-01 21:50:16.542160
++n
+
+# 2025-02-01 21:50:23.818119
++render_vulkan.h
+
+# 2025-02-01 21:50:25.169853
++y
+
+# 2025-02-01 21:50:29.806892
++n 
+
+# 2025-02-01 21:50:31.538628
++n
+
+# 2025-02-01 21:50:37.453345
++in my code, i get this error Program: D:\dev_d\Zayn_PC\x64\Debug\Zayn_PC.exe
++File: C:\Program Files\Microsoft Visual
++Studio\2022\Community\VC\Tools\MSVC\14.38.33130\include\
++vector
++Line: 1894
++
++Expression: vector subscript out of range
++
++For information on how your program can cause an assertion
++failure, see the Visual C++ documentation on asserts.
+
+# 2025-02-01 21:51:04.793603
++n
+
+# 2025-02-01 21:52:12.979495
++i think i need to create a game object somerhere, can you do that? 
+
+# 2025-02-01 21:52:26.774533
++y
+
+# 2025-02-01 21:52:47.146096
++m
+
+# 2025-02-01 21:52:48.414465
++n
+
+# 2025-02-01 21:53:23.625414
++i need to Create the material
+
+# 2025-02-01 21:53:43.528132
++y
+
+# 2025-02-01 21:54:38.176240
++Severity	Code	Description	Project	File	Line	Suppression State	Details
++Error	C2079	'ZaynMemory::material_001' uses undefined struct 'Material'	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	209		
++Error	C2027	use of undefined type 'Material'	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1599		
++Error	C2027	use of undefined type 'Material'	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1608		
++Error	C2027	use of undefined type 'Material'	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1620		
++Error	C2027	use of undefined type 'Material'	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1711		
++Error (active)	E0135	class "Material" has no member "texture"	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1599		
++Error	C2079	'ZaynMemory::material_001' uses undefined struct 'Material'	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	209		
++Error	C2079	'ZaynMemory::material_001' uses undefined struct 'Material'	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	209		
++Error	C2079	'ZaynMemory::material_001' uses undefined struct 'Material'	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	209		
++Error	C2079	'ZaynMemory::material_001' uses undefined struct 'Material'	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	209		
++Error	C2079	'ZaynMemory::material_001' uses undefined struct 'Material'	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	209		
++Error	C2664	'void CreateMaterial(ZaynMemory *,Material *,const std::string &)': cannot convert argument 2 from 'int *' to 'Material *'	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1638		
++Error	C2660	'vkCmdBindDescriptorSets': function does not take 7 arguments	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1706		
++Error	C2660	'vkAllocateDescriptorSets': function does not take 2 arguments	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1608		
++Error	C2011	'Material': 'struct' type redefinition	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	159		
++Error	C2011	'Material': 'struct' type redefinition	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	159		
++Error	C2011	'Material': 'struct' type redefinition	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	159		
++Error	C2011	'Material': 'struct' type redefinition	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	159		
++Error	C2011	'Material': 'struct' type redefinition	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	159		
++Error	C2011	'Material': 'struct' type redefinition	Zayn_PC	D:\dev_d\Zayn_PC\src\zayn.h	159		
++Error	C2079	'material' uses undefined struct 'Material'	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1637		
++Error	C2440	'=': cannot convert from 'int *' to 'Material *'	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1647		
++
+
+# 2025-02-01 21:59:48.522050
++n
+
+# 2025-02-01 21:59:52.934537
++i think i need CreateTextureImage
+
+# 2025-02-01 22:00:10.588856
++y
+
+# 2025-02-01 22:03:01.748912
++n
+
+# 2025-02-01 22:03:37.694678
++Debug Assertion Failed!
++
++Program: D:\dev_d\Zayn_PC\x64\Debug\Zayn_PC.exe
++File: C:\Program Files\Microsoft Visual
++Studio\2022\Community\VC\Tools\MSVC\14.38.33130\include\
++vector
++Line: 1894
++
++Expression: vector subscript out of range
++
++For information on how your program can cause an assertion
++failure, see the Visual C++ documentation on asserts.
++
++(Press Retry to debug the application)
+
+# 2025-02-01 22:20:17.268309
++render_vulkan_v2.cpp
+
+# 2025-02-01 22:20:17.967206
++y
+
+# 2025-02-01 22:20:22.565677
++void CreateMaterial(ZaynMemory* zaynMem, Material* material, const std::string& texturePath) {
++    // Load the texture
++    Texture texture;
++    CreateTextureImage(zaynMem, texturePath, &texture);
++    material->texture = &texture;
++
++    // Allocate descriptor set
++    VkDescriptorSetAllocateInfo allocInfo{};
++    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
++    allocInfo.descriptorPool = zaynMem->vulkan.vkDescriptorPool;
++    allocInfo.descriptorSetCount = 1;
++    allocInfo.pSetLayouts = &zaynMem->vulkan.vkDescriptorSetLayout;
++
++    if (vkAllocateDescriptorSets(zaynMem->vulkan.vkDevice, &allocInfo, &material->descriptorSet) != VK_SUCCESS) {
++        throw std::runtime_error("failed to allocate descriptor set for material!");
++    }
++
++    // Update descriptor set with texture information
++    VkDescriptorImageInfo imageInfo{};
++    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
++    imageInfo.imageView = texture.imageView;
++    imageInfo.sampler = texture.sampler;
++
++    VkWriteDescriptorSet descriptorWrite{};
++    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
++    descriptorWrite.dstSet = material->descriptorSet;
++    descriptorWrite.dstBinding = 1; // Assuming binding 1 for texture
++    descriptorWrite.dstArrayElement = 0;
++    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
++    descriptorWrite.descriptorCount = 1;
++    descriptorWrite.pImageInfo = &imageInfo;
++
++    vkUpdateDescriptorSets(zaynMem->vulkan.vkDevice, 1, &descriptorWrite, 0, nullptr);
++}
+
+# 2025-02-01 22:20:23.586958
++n
+
+# 2025-02-01 22:20:24.301522
++void CreateMaterial(ZaynMemory* zaynMem, Material* material, const std::string& texturePath) {
++    // Load the texture
++    Texture texture;
++    CreateTextureImage(zaynMem, texturePath, &texture);
++    material->texture = &texture;
++
++    // Allocate descriptor set
++    VkDescriptorSetAllocateInfo allocInfo{};
++    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
++    allocInfo.descriptorPool = zaynMem->vulkan.vkDescriptorPool;
++    allocInfo.descriptorSetCount = 1;
++    allocInfo.pSetLayouts = &zaynMem->vulkan.vkDescriptorSetLayout;
++
++    if (vkAllocateDescriptorSets(zaynMem->vulkan.vkDevice, &allocInfo, &material->descriptorSet) != VK_SUCCESS) {
++        throw std::runtime_error("failed to allocate descriptor set for material!");
++    }
++
++    // Update descriptor set with texture information
++    VkDescriptorImageInfo imageInfo{};
++    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
++    imageInfo.imageView = texture.imageView;
++    imageInfo.sampler = texture.sampler;
++
++    VkWriteDescriptorSet descriptorWrite{};
++    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
++    descriptorWrite.dstSet = material->descriptorSet;
++    descriptorWrite.dstBinding = 1; // Assuming binding 1 for texture
++    descriptorWrite.dstArrayElement = 0;
++    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
++    descriptorWrite.descriptorCount = 1;
++    descriptorWrite.pImageInfo = &imageInfo;
++
++    vkUpdateDescriptorSets(zaynMem->vulkan.vkDevice, 1, &descriptorWrite, 0, nullptr);
++}
+
+# 2025-02-01 22:20:29.751231
++n
+
+# 2025-02-01 22:20:42.777012
++i am getting an error exception unhantled 
+
+# 2025-02-01 22:20:57.495373
++y
+
+# 2025-02-01 23:13:37.843910
++n
+
+# 2025-02-01 23:14:54.902153
++the material creation is failing
+
+# 2025-02-01 23:15:20.318667
++y
+
+# 2025-02-01 23:17:04.811110
++n
+
+# 2025-02-01 23:17:12.975010
++it produces Creating material with texture: src/render/textures/viking_room.png
++Texture created successfully
++Descriptor pool and layout validated
+
+# 2025-02-01 23:17:18.947955
++n
+
+# 2025-02-01 23:17:46.875953
++y
+
+# 2025-02-01 23:23:27.211098
++n
+
+# 2025-02-01 23:24:07.221574
++render_vulkan_v2.cpp
+
+# 2025-02-01 23:24:11.259525
++y
+
+# 2025-02-01 23:25:14.374640
++n
+
+# 2025-02-01 23:25:45.754010
++i am having errors at the creatematerials funtion, please provide fixes 
+
+# 2025-02-01 23:30:10.292145
++i am having errors at the creatematerials funtion, please provide fixes render_vulkan_v2.cpp
+
+# 2025-02-01 23:30:15.873722
++y
+
+# 2025-02-01 23:33:11.562312
++n
+
+# 2025-02-01 23:33:34.399948
++all that prints is texture created successfully
+
+# 2025-02-01 23:38:34.335029
++n
+
+# 2025-02-01 23:38:35.211285
++validation layer: Validation Error: [ VUID-VkGraphicsPipelineCreateInfo-layout-07988 ] Object 0: handle = 0xa43473000000002d, type = VK_OBJECT_TYPE_SHADER_MODULE; Object 1: handle = 0x980b0000000002e, type = VK_OBJECT_TYPE_PIPELINE_LAYOUT; | MessageID = 0x215f02cd | vkCreateGraphicsPipelines(): pCreateInfos[0].pStages[1] SPIR-V (VK_SHADER_STAGE_FRAGMENT_BIT) uses descriptor [Set 0, Binding 1, variable "texSampler"] (type VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) but was not declared in the pipeline layout.
++The Vulkan spec states: If a resource variables is declared in a shader, a descriptor slot in layout must match the shader stage (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-VkGraphicsPipelineCreateInfo-layout-07988)
++Texture created successfully
+
+# 2025-02-01 23:38:37.411476
++n
+
+# 2025-02-01 23:38:54.745594
++y
+
+# 2025-02-01 23:41:09.031618
++n
+
+# 2025-02-01 23:41:11.314661
++im hitting  throw std::runtime_error("Failed to allocate descriptor set for material! Error code: " + std::to_string(result));
+
+# 2025-02-01 23:41:27.413976
++y
+
+# 2025-02-01 23:42:18.792369
++n
+
+# 2025-02-01 23:42:19.442351
++
++validation layer: Validation Error: [ VUID-VkWriteDescriptorSet-descriptorType-00319 ] Object 0: handle = 0x89e60f0000000042, type = VK_OBJECT_TYPE_DESCRIPTOR_SET; Object 1: handle = 0x908683000000001d, type = VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT; | MessageID = 0xe7d2bdda | vkUpdateDescriptorSets(): pDescriptorWrites[0].descriptorType (VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) is different from pBinding[0].descriptorType (VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) of VkDescriptorSet 0x89e60f0000000042[] allocated with VkDescriptorSetLayout 0x908683000000001d[].
++The Vulkan spec states: descriptorType must match the type of dstBinding within dstSet (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-VkWriteDescriptorSet-descriptorType-00319)
+
+# 2025-02-01 23:42:21.219343
++n
+
+# 2025-02-01 23:42:32.564138
++validation layer: Validation Error: [ VUID-VkWriteDescriptorSet-descriptorType-00319 ] Object 0: handle = 0x89e60f0000000042, type = VK_OBJECT_TYPE_DESCRIPTOR_SET; Object 1: handle = 0x908683000000001d, type = VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT; | MessageID = 0xe7d2bdda | vkUpdateDescriptorSets(): pDescriptorWrites[0].descriptorType (VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) is different from pBinding[0].descriptorType (VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) of VkDescriptorSet 0x89e60f0000000042[] allocated with VkDescriptorSetLayout 0x908683000000001d[].
+
+# 2025-02-01 23:42:35.075056
++The Vulkan spec states: descriptorType must match the type of dstBinding within dstSet (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-VkWriteDescriptorSet-descriptorType-00319)
+
+# 2025-02-01 23:42:37.126582
++n
+
+# 2025-02-01 23:43:09.249529
++validation layer: Validation Error: [ VUID-VkWriteDescriptorSet-descriptorType-00319 ] Object 0: handle = 0x89e60f0000000042, type = VK_OBJECT_TYPE_DESCRIPTOR_SET; Object 1: handle = 0x908683000000001d, type = VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT; | MessageID = 0xe7d2bdda | vkUpdateDescriptorSets(): pDescriptorWrites[0].descriptorType (VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) is different from pBinding[0].descriptorType (VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) of VkDescriptorSet 0x89e60f0000000042[] allocated with VkDescriptorSetLayout 0x908683000000001d[].
++The Vulkan spec states: descriptorType must match the type of dstBinding within dstSet (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-VkWriteDescriptorSet-descriptorType-00319)
+
+# 2025-02-01 23:43:29.732704
++y
+
+# 2025-02-01 23:44:10.165881
++n
+
+# 2025-02-01 23:46:12.922961
++validation layer: Validation Error: [ VUID-vkAcquireNextImageKHR-semaphore-01780 ] Object 0: handle = 0xf443490000000006, type = VK_OBJECT_TYPE_SWAPCHAIN_KHR; | MessageID = 0x94557523 | vkAcquireNextImageKHR():  semaphore and fence are both VK_NULL_HANDLE.
++The Vulkan spec states: semaphore and fence must not both be equal to VK_NULL_HANDLE (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkAcquireNextImageKHR-semaphore-01780)
++validation layer: Validation Error: [ VUID-vkCmdDrawIndexed-None-08114 ] Object 0: handle = 0xea7170000000031, type = VK_OBJECT_TYPE_DESCRIPTOR_SET; | MessageID = 0x3f6fd836 | vkCmdDrawIndexed():  the descriptor VkDescriptorSet 0xea7170000000031[] [Set 0, Binding 1, Index 0, variable "texSampler"] is being used in draw but has never been updated via vkUpdateDescriptorSets() or a similar call.
++The Vulkan spec states: Descriptors in each bound descriptor set, specified via vkCmdBindDescriptorSets, must be valid as described by descriptor validity if they are statically used by the VkPipeline bound to the pipeline bind point used by this command and the bound VkPipeline was not created with VK_PIPELINE_CREATE_DESCRIPTOR_BUFFER_BIT_EXT (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkCmdDrawIndexed-None-08114)
++validation layer: Validation Error: [ VUID-VkSubmitInfo-pWaitSemaphores-parameter ] Object 0: handle = 0x25b266983f0, type = VK_OBJECT_TYPE_INSTANCE; | MessageID = 0xb0d79520 | vkQueueSubmit(): pSubmits[0].pWaitSemaphores[0] Invalid VkSemaphore Object 0x0.
++The Vulkan spec states: If waitSemaphoreCount is not 0, pWaitSemaphores must be a valid pointer to an array of waitSemaphoreCount valid VkSemaphore handles (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-VkSubmitInfo-pWaitSemaphores-parameter)
++validation layer: Validation Error: [ VUID-VkSubmitInfo-pSignalSemaphores-parameter ] Object 0: handle = 0x25b266983f0, type = VK_OBJECT_TYPE_INSTANCE; | MessageID = 0xb108ab13 | vkQueueSubmit(): pSubmits[0].pSignalSemaphores[0] Invalid VkSemaphore Object 0x0.
++The Vulkan spec states: If signalSemaphoreCount is not 0, pSignalSemaphores must be a valid pointer to an array of signalSemaphoreCount valid VkSemaphore handles (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-VkSubmitInfo-pSignalSemaphores-parameter)
+
+# 2025-02-01 23:46:14.684554
++n
+
+# 2025-02-01 23:46:34.068095
++y
+
+# 2025-02-01 23:47:25.765826
++n
+
+# 2025-02-02 00:48:46.060067
++ 
+
+# 2025-02-02 00:48:51.174378
++n
+
+# 2025-02-02 00:49:29.009985
++render_vulkan_v2.cpp
+
+# 2025-02-02 00:49:34.989992
++y
+
+# 2025-02-02 00:53:40.529709
++render_vulkan_v2.cpp
+
+# 2025-02-02 00:53:43.720665
++y
+
+# 2025-02-02 00:56:50.613459
++n
+
+# 2025-02-02 00:58:49.352230
++please fix create material function
+
+# 2025-02-02 01:01:54.135356
++ n
+
+# 2025-02-02 01:01:55.329862
++n
+
+# 2025-02-02 12:07:27.872567
++The code execution cannot proceed because glfw3.dll was
++not found. Reinstalling the program may fix this problem.
+
+# 2025-02-02 12:09:48.030510
++n
+
+# 2025-02-02 12:11:23.356801
++The Vulkan spec states: commandBuffer must not be in the recording or pending state (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkBeginCommandBuffer-commandBuffer-00049)
++validation layer: Validation Error: [ VUID-vkCmdDrawIndexed-None-08114 ] Object 0: handle = 0xea7170000000031, type = VK_OBJECT_TYPE_DESCRIPTOR_SET; | MessageID = 0x3f6fd836 | vkCmdDrawIndexed():  the descriptor VkDescriptorSet 0xea7170000000031[] [Set 0, Binding 1, Index 0, variable "texSampler"] is being used in draw but has never been updated via vkUpdateDescriptorSets() or a similar call.
++The Vulkan spec states: Descriptors in each bound descriptor set, specified via vkCmdBindDescriptorSets, must be valid as described by descriptor validity if they are statically used by the VkPipeline bound to the pipeline bind point used by this command and the bound VkPipeline was not created with VK_PIPELINE_CREATE_DESCRIPTOR_BUFFER_BIT_EXT (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkCmdDrawIndexed-None-08114)
++validation layer: Validation Error: [ VUID-vkAcquireNextImageKHR-semaphore-01779 ] Object 0: handle = 0x2b424a0000000034, type = VK_OBJECT_TYPE_SEMAPHORE; | MessageID = 0x5717e75b | vkAcquireNextImageKHR():  Semaphore must not have any pending operations.
++The Vulkan spec states: If semaphore is not VK_NULL_HANDLE, it must not have any uncompleted signal or wait operations pending (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkAcquireNextImageKHR-semaphore-01779)
++validation layer: Validation Error: [ VUID-vkBeginCommandBuffer-commandBuffer-00049 ] Object 0: handle = 0x1d1e1df6030, type = VK_OBJECT_TYPE_COMMAND_BUFFER; | MessageID = 0x84029a9f | vkBeginCommandBuffer():  on active VkCommandBuffer 0x1d1e1df6030[] before it has completed. You must check command buffer fence before this call.
+
+# 2025-02-02 12:11:24.597085
++n
+
+# 2025-02-02 12:12:26.060060
++y
+
+# 2025-02-02 12:13:51.190286
++render_vulkan_v2.cpp
+
+# 2025-02-02 12:13:52.106092
++y
+
+# 2025-02-02 12:15:04.043452
++The Vulkan spec states: commandBuffer must not be in the recording or pending state (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkBeginCommandBuffer-commandBuffer-00049)
++validation layer: Validation Error: [ VUID-vkCmdDrawIndexed-None-08114 ] Object 0: handle = 0xea7170000000031, type = VK_OBJECT_TYPE_DESCRIPTOR_SET; | MessageID = 0x3f6fd836 | vkCmdDrawIndexed():  the descriptor VkDescriptorSet 0xea7170000000031[] [Set 0, Binding 1, Index 0, variable "texSampler"] is being used in draw but has never been updated via vkUpdateDescriptorSets() or a similar call.
++The Vulkan spec states: Descriptors in each bound descriptor set, specified via vkCmdBindDescriptorSets, must be valid as described by descriptor validity if they are statically used by the VkPipeline bound to the pipeline bind point used by this command and the bound VkPipeline was not created with VK_PIPELINE_CREATE_DESCRIPTOR_BUFFER_BIT_EXT (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkCmdDrawIndexed-None-08114)
++validation layer: Validation Error: [ VUID-vkAcquireNextImageKHR-semaphore-01779 ] Object 0: handle = 0x2b424a0000000034, type = VK_OBJECT_TYPE_SEMAPHORE; | MessageID = 0x5717e75b | vkAcquireNextImageKHR():  Semaphore must not have any pending operations.
++The Vulkan spec states: If semaphore is not VK_NULL_HANDLE, it must not have any uncompleted signal or wait operations pending (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkAcquireNextImageKHR-semaphore-01779)
++validation layer: Validation Error: [ VUID-vkBeginCommandBuffer-commandBuffer-00049 ] Object 0: handle = 0x1d1e1df6030, type = VK_OBJECT_TYPE_COMMAND_BUFFER; | MessageID = 0x84029a9f | vkBeginCommandBuffer():  on active VkCommandBuffer 0x1d1e1df6030[] before it has completed. You must check command buffer fence before this call.
+
+# 2025-02-02 12:15:05.817014
++j
+
+# 2025-02-02 12:15:09.474899
++n
+
+# 2025-02-02 12:18:25.447624
++The Vulkan spec states: commandBuffer must not be in the recording or pending state (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkBeginCommandBuffer-commandBuffer-00049)
++validation layer: Validation Error: [ VUID-vkCmdDrawIndexed-None-08114 ] Object 0: handle = 0xea7170000000031, type = VK_OBJECT_TYPE_DESCRIPTOR_SET; | MessageID = 0x3f6fd836 | vkCmdDrawIndexed():  the descriptor VkDescriptorSet 0xea7170000000031[] [Set 0, Binding 1, Index 0, variable "texSampler"] is being used in draw but has never been updated via vkUpdateDescriptorSets() or a similar call.
++The Vulkan spec states: Descriptors in each bound descriptor set, specified via vkCmdBindDescriptorSets, must be valid as described by descriptor validity if they are statically used by the VkPipeline bound to the pipeline bind point used by this command and the bound VkPipeline was not created with VK_PIPELINE_CREATE_DESCRIPTOR_BUFFER_BIT_EXT (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkCmdDrawIndexed-None-08114)
++validation layer: Validation Error: [ VUID-vkAcquireNextImageKHR-semaphore-01779 ] Object 0: handle = 0x2b424a0000000034, type = VK_OBJECT_TYPE_SEMAPHORE; | MessageID = 0x5717e75b | vkAcquireNextImageKHR():  Semaphore must not have any pending operations.
++The Vulkan spec states: If semaphore is not VK_NULL_HANDLE, it must not have any uncompleted signal or wait operations pending (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkAcquireNextImageKHR-semaphore-01779)
++validation layer: Validation Error: [ VUID-vkBeginCommandBuffer-commandBuffer-00049 ] Object 0: handle = 0x1d1e1df6030, type = VK_OBJECT_TYPE_COMMAND_BUFFER; | MessageID = 0x84029a9f | vkBeginCommandBuffer():  on active VkCommandBuffer 0x1d1e1df6030[] before it has completed. You must check command buffer fence before this call. 
+
+# 2025-02-02 12:18:26.527612
++n
+
+# 2025-02-02 12:19:16.357507
++o
+
+# 2025-02-02 12:19:19.409463
++y
+
+# 2025-02-02 12:23:22.750800
++render_vulkan_v2.cpp
+
+# 2025-02-02 12:23:23.330525
++y
+
+# 2025-02-02 12:24:16.878720
++n
+
+# 2025-02-02 12:24:36.023349
++validation layer: Validation Error: [ VUID-vkAcquireNextImageKHR-semaphore-01779 ] Object 0: handle = 0x2b424a0000000034, type = VK_OBJECT_TYPE_SEMAPHORE; | MessageID = 0x5717e75b | vkAcquireNextImageKHR():  Semaphore must not have any pending operations.
++The Vulkan spec states: If semaphore is not VK_NULL_HANDLE, it must not have any uncompleted signal or wait operations pending (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkAcquireNextImageKHR-semaphore-01779)
++validation layer: Validation Error: [ VUID-vkBeginCommandBuffer-commandBuffer-00049 ] Object 0: handle = 0x108045076d0, type = VK_OBJECT_TYPE_COMMAND_BUFFER; | MessageID = 0x84029a9f | vkBeginCommandBuffer():  on active VkCommandBuffer 0x108045076d0[] before it has completed. You must check command buffer fence before this call.
++The Vulkan spec states: commandBuffer must not be in the recording or pending state (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkBeginCommandBuffer-commandBuffer-00049)
++validation layer: Validation Error: [ VUID-vkCmdDrawIndexed-None-08114 ] Object 0: handle = 0xea7170000000031, type = VK_OBJECT_TYPE_DESCRIPTOR_SET; | MessageID = 0x3f6fd836 | vkCmdDrawIndexed():  the descriptor VkDescriptorSet 0xea7170000000031[] [Set 0, Binding 1, Index 0, variable "texSampler"] is being used in draw but has never been updated via vkUpdateDescriptorSets() or a similar call.
++The Vulkan spec states: Descriptors in each bound descriptor set, specified via vkCmdBindDescriptorSets, must be valid as described by descriptor validity if they are statically used by the VkPipeline bound to the pipeline bind point used by this command and the bound VkPipeline was not created with VK_PIPELINE_CREATE_DESCRIPTOR_BUFFER_BIT_EXT (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkCmdDrawIndexed-None-08114)
+
+# 2025-02-02 12:24:37.389059
++n
+
+# 2025-02-02 12:32:44.595254
++y
+
+# 2025-02-02 14:24:59.414548
++n
+
+# 2025-02-02 14:25:02.025050
++The Vulkan spec states: Descriptors in each bound descriptor set, specified via vkCmdBindDescriptorSets, must be valid as described by descriptor validity if they are statically used by the VkPipeline bound to the pipeline bind point used by this command and the bound VkPipeline was not created with VK_PIPELINE_CREATE_DESCRIPTOR_BUFFER_BIT_EXT (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkCmdDrawIndexed-None-08114)
++validation layer: Validation Error: [ VUID-vkCmdDrawIndexed-None-08114 ] Object 0: handle = 0xea7170000000031, type = VK_OBJECT_TYPE_DESCRIPTOR_SET; | MessageID = 0x3f6fd836 | vkCmdDrawIndexed():  the descriptor VkDescriptorSet 0xea7170000000031[] [Set 0, Binding 1, Index 0, variable "texSampler"] is being used in draw but has never been updated via vkUpdateDescriptorSets() or a similar call.
+
+# 2025-02-02 14:27:34.711960
++ 
+
+# 2025-02-02 14:43:15.342058
++The Vulkan spec states: Descriptors in each bound descriptor set, specified via vkCmdBindDescriptorSets, must be valid as described by descriptor validity if they are statically used by the VkPipeline bound to the pipeline bind point used by this command and the bound VkPipeline was not created with VK_PIPELINE_CREATE_DESCRIPTOR_BUFFER_BIT_EXT (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkCmdDrawIndexed-None-08114)
++validation layer: Validation Error: [ VUID-vkCmdDrawIndexed-None-08114 ] Object 0: handle = 0xea7170000000031, type = VK_OBJECT_TYPE_DESCRIPTOR_SET; | MessageID = 0x3f6fd836 | vkCmdDrawIndexed():  the descriptor VkDescriptorSet 0xea7170000000031[] [Set 0, Binding 1, Index 0, variable "texSampler"] is being used in draw but has never been updated via vkUpdateDescriptorSets() or a similar call.
+
+# 2025-02-02 14:48:36.400185
++y
+
+# 2025-02-02 14:50:44.591649
++n
+
+# 2025-02-02 14:51:25.327547
++Severity	Code	Description	Project	File	Line	Suppression State	Details
++Error	C2039	'vkMaterialDescriptorSetLayout': is not a member of 'MyVulkanData'	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1429		
++Severity	Code	Description	Project	File	Line	Suppression State	Details
++Error	C2660	'vkCreateDescriptorSetLayout': function does not take 3 arguments	Zayn_PC	D:\dev_d\Zayn_PC\src\render\render_vulkan_v2.cpp	1651		
++src\zayn.h
+
+# 2025-02-02 14:51:29.726326
++y
+
+# 2025-02-02 20:13:58.594451
++src\zayn.cpp
+
+# 2025-02-02 20:14:02.718508
++y
+
+# 2025-02-02 20:19:00.894483
++
++zaynMem->material_001.**texture** was nullptr. render_vulkan_v2.cpp
+
+# 2025-02-02 20:19:03.845538
++y
+
+# 2025-02-02 20:23:32.442179
++can you determine why i am getting the error 
++zaynMem->material_001.**texture** was nullptr.
+
+# 2025-02-02 20:30:28.428960
++can you determine why i am getting the error 
++zaynMem->material_001.**texture** was nullptr. render_vulkan_v2.cpp
+
+# 2025-02-02 20:30:32.247231
++y
+
+# 2025-02-02 20:40:51.683442
++n
+
+# 2025-02-02 20:43:42.661652
++GameObject initialization failed: Material creation failed: Descriptor pool or layout not initialized 
+
+# 2025-02-02 20:45:29.566828
++y
+
+# 2025-02-02 20:54:18.919102
++n
+
+# 2025-02-02 20:54:23.040437
++/clear
+
+# 2025-02-02 20:54:26.729481
++/to
+
+# 2025-02-02 20:56:37.423056
++/ed
+
+# 2025-02-02 20:57:06.659954
++/tok
+
+# 2025-02-02 20:58:09.488857
++i am hitting this throw if (!zaynMem->material_001.texture) {
++    throw std::runtime_error("Material texture not initialized before descriptor set creation");
++} 
+
+# 2025-02-02 21:03:13.542605
++can you correct my code to fix this error. what do i need to do to to create the materials prior to descriptor set creation. take that code out of the `InitializeGameObject` and into a function that is hit earlier on.
+
+# 2025-02-02 21:05:40.263649
++can you correct my code to fix this error. what do i need
++ to do to to create the materials prior to descriptor set creation.
++take that code out of the `InitializeGameObject` and into a function
++ that is hit earlier on. render_vulkan_v2.cpp
+
+# 2025-02-02 21:05:42.267636
++y
+
+# 2025-02-02 21:08:12.177975
++can you correct my code to fix this error. what do i need
++ to do to to create the materials prior to descriptor set creation.
++take that code out of the `InitializeGameObject` and into a function
++ that is hit earlier on. src\render\render_vulkan_v2.cpp
+
+# 2025-02-02 21:08:14.173540
++y
+
+# 2025-02-02 21:09:55.910733
++can you correct my code to fix this error. what do i need
++ to do to to create the materials prior to descriptor set creation.
++take that code out of the `InitializeGameObject` and into a function
++ that is hit earlier on. render_vulkan_v2.cpp
+
+# 2025-02-02 21:09:57.855542
++y
+
+# 2025-02-02 21:14:32.688593
++n
+
+# 2025-02-02 21:15:37.077184
++the problem now is that i am hitting // Validate descriptor pool and layout
++if (!zaynMem->vulkan.vkDescriptorPool || !zaynMem->vulkan.vkDescriptorSetLayout) {
++    throw std::runtime_error("Descriptor pool or layout not initialized");
++} in my `CreateMaterial`. please fix this, i am assuming that something is not right either in the order or something, 
+
+# 2025-02-02 21:16:55.787031
++y
+
+# 2025-02-02 21:18:08.716845
++n
+
+# 2025-02-02 21:19:34.579554
++now i am getting **image_info** was nullptr. in my `CreateMaterial`
+
+# 2025-02-02 21:23:09.832749
++d y
+
+# 2025-02-02 21:23:11.782566
++y
+
+# 2025-02-02 21:24:37.788517
++n
+
+# 2025-02-02 21:24:41.953539
++validation layer: Validation Error: [ VUID-vkCmdBindDescriptorSets-pDescriptorSets-00358 ] Object 0: handle = 0x2b48b9d58d0, type = VK_OBJECT_TYPE_COMMAND_BUFFER; Object 1: handle = 0x2b424a0000000034, type = VK_OBJECT_TYPE_DESCRIPTOR_SET; | MessageID = 0xe1b89b63 | vkCmdBindDescriptorSets(): pDescriptorSets[0] (VkDescriptorSet 0x2b424a0000000034[]) being bound is not compatible with overlapping descriptorSetLayout at index 0 of VkPipelineLayout 0x210d07000000003a[] due to: VkDescriptorSetLayout 0xcb3ee80000000007[] from pipeline layout has 2 total descriptors, but VkDescriptorSetLayout 0xf443490000000006[], which is bound, has 1 total descriptors..
++The Vulkan spec states: Each element of pDescriptorSets must have been allocated with a VkDescriptorSetLayout that matches (is the same as, or identically defined as) the VkDescriptorSetLayout at set n in layout, where n is the sum of firstSet and the index into pDescriptorSets (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkCmdBindDescriptorSets-pDescriptorSets-00358)
+
+# 2025-02-02 21:24:44.380194
++n
+
+# 2025-02-02 21:29:28.260419
++validation layer: Validation Error: [ VUID-vkCmdBindDescriptorSets-pDescriptorSets-00358 ] Object 0: handle = 0x2b48b9d58d0, type = VK_OBJECT_TYPE_COMMAND_BUFFER; Object 1: handle = 0x2b424a0000000034, type = VK_OBJECT_TYPE_DESCRIPTOR_SET; | MessageID = 0xe1b89b63 | vkCmdBindDescriptorSets(): pDescriptorSets[0] (VkDescriptorSet 0x2b424a0000000034[]) being bound is not compatible with overlapping descriptorSetLayout at index 0 of VkPipelineLayout 0x210d07000000003a[] due to: VkDescriptorSetLayout 0xcb3ee80000000007[] from pipeline layout has 2 total descriptors, but VkDescriptorSetLayout 0xf443490000000006[], which is bound, has 1 total descriptors..
++The Vulkan spec states: Each element of pDescriptorSets must have been allocated with a VkDescriptorSetLayout that matches (is the same as, or identically defined as) the VkDescriptorSetLayout at set n in layout, where n is the sum of firstSet and the index into pDescriptorSets (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkCmdBindDescriptorSets-pDescriptorSets-00358)
+
+# 2025-02-02 21:29:30.652337
++n
+
+# 2025-02-02 21:35:12.729359
++validation layer: Validation Error: [ VUID-vkCmdBindDescriptorSets-pDescriptorSets-00358 ] Object 0: handle = 0x2b48b9d58d0, type = VK_OBJECT_TYPE_COMMAND_BUFFER; Object 1: handle = 0x2b424a0000000034, type = VK_OBJECT_TYPE_DESCRIPTOR_SET; | MessageID = 0xe1b89b63 | vkCmdBindDescriptorSets(): pDescriptorSets[0] (VkDescriptorSet 0x2b424a0000000034[]) being bound is not compatible with overlapping descriptorSetLayout at index 0 of VkPipelineLayout 0x210d07000000003a[] due to: VkDescriptorSetLayout 0xcb3ee80000000007[] from pipeline layout has 2 total descriptors, but VkDescriptorSetLayout 0xf443490000000006[], which is bound, has 1 total descriptors..
++The Vulkan spec states: Each element of pDescriptorSets must have been allocated with a VkDescriptorSetLayout that matches (is the same as, or identically defined as) the VkDescriptorSetLayout at set n in layout, where n is the sum of firstSet and the index into pDescriptorSets (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkCmdBindDescriptorSets-pDescriptorSets-00358) src\render\render_vulkan_v2.cpp
+
+# 2025-02-02 21:35:15.626736
++y
+
+# 2025-02-02 21:35:17.901968
++n
+
+# 2025-02-02 21:41:54.910165
++validation layer: Validation Error: [ VUID-vkCmdBindDescriptorSets-pDescriptorSets-00358 ] Object 0: handle = 0x2b48b9d58d0, type = VK_OBJECT_TYPE_COMMAND_BUFFER; Object 1: handle = 0x2b424a0000000034, type = VK_OBJECT_TYPE_DESCRIPTOR_SET; | MessageID = 0xe1b89b63 | vkCmdBindDescriptorSets(): pDescriptorSets[0] (VkDescriptorSet 0x2b424a0000000034[]) being bound is not compatible with overlapping descriptorSetLayout at index 0 of VkPipelineLayout 0x210d07000000003a[] due to: VkDescriptorSetLayout 0xcb3ee80000000007[] from pipeline layout has 2 total descriptors, but VkDescriptorSetLayout 0xf443490000000006[], which is bound, has 1 total descriptors..
++The Vulkan spec states: Each element of pDescriptorSets must have been allocated with a VkDescriptorSetLayout that matches (is the same as, or identically defined as) the VkDescriptorSetLayout at set n in layout, where n is the sum of firstSet and the index into pDescriptorSets (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkCmdBindDescriptorSets-pDescriptorSets-00358) src\render\render_vulkan_v2.cpp
+
+# 2025-02-02 21:42:00.885930
++n
+
+# 2025-02-03 01:26:44.048908
++#version 450
++
++layout(binding = 0) uniform UniformBufferObject {
++    mat4 model;
++    mat4 view;
++    mat4 proj;
++    mat4 viewProj;
++} ubo;
++
++layout(location = 0) in vec3 inPosition;
++layout(location = 1) in vec3 inColor;
++layout(location = 2) in vec2 inTexCoord;
++
++layout(location = 0) out vec3 fragColor;
++layout(location = 1) out vec2 fragTexCoord;
++
++void main() {
++    gl_Position = ubo.proj * ubo.view * ubo.model * vec4(inPosition, 1.0);
++    // gl_Position = ubo.viewProj * ubo.model * vec4(inPosition, 1.0);
++    fragColor = inColor;
++    fragTexCoord = inTexCoord;
++}#version 450
++
++layout(binding = 1) uniform sampler2D texSampler;
++
++layout(location = 0) in vec3 fragColor;
++layout(location = 1) in vec2 fragTexCoord;
++
++layout(location = 0) out vec4 outColor;
++
++void main() {
++    outColor = texture(texSampler, fragTexCoord);
++}
++src\render\render_vulkan_v2.cpp
+
+# 2025-02-03 01:28:19.087474
++render_vulkan_v2.cpp
+
+# 2025-02-03 01:39:09.707390
++validation layer: Validation Error: [ VUID-vkCmdBindDescriptorSets-pDescriptorSets-00358 ] Object 0: handle = 0x25ecbb6d7c0, type = VK_OBJECT_TYPE_COMMAND_BUFFER; Object 1: handle = 0x2b424a0000000034, type = VK_OBJECT_TYPE_DESCRIPTOR_SET; | MessageID = 0xe1b89b63 | vkCmdBindDescriptorSets(): pDescriptorSets[0] (VkDescriptorSet 0x2b424a0000000034[]) being bound is not compatible with overlapping descriptorSetLayout at index 0 of VkPipelineLayout 0x210d07000000003a[] due to: VkDescriptorSetLayout 0xcb3ee80000000007[] from pipeline layout has 2 total descriptors, but VkDescriptorSetLayout 0xf443490000000006[], which is bound, has 1 total descriptors..
++The Vulkan spec states: Each element of pDescriptorSets must have been allocated with a VkDescriptorSetLayout that matches (is the same as, or identically defined as) the VkDescriptorSetLayout at set n in layout, where n is the sum of firstSet and the index into pDescriptorSets (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkCmdBindDescriptorSets-pDescriptorSets-00358) src\render\render_vulkan_v2.cpp
+
+# 2025-02-03 01:39:40.961215
++validation layer: Validation Error: [ VUID-vkCmdBindDescriptorSets-pDescriptorSets-00358 ] Object 0: handle = 0x25ecbb6d7c0, type = VK_OBJECT_TYPE_COMMAND_BUFFER; Object 1: handle = 0x2b424a0000000034, type = VK_OBJECT_TYPE_DESCRIPTOR_SET; | MessageID = 0xe1b89b63 | vkCmdBindDescriptorSets(): pDescriptorSets[0] (VkDescriptorSet 0x2b424a0000000034[]) being bound is not compatible with overlapping descriptorSetLayout at index 0 of VkPipelineLayout 0x210d07000000003a[] due to: VkDescriptorSetLayout 0xcb3ee80000000007[] from pipeline layout has 2 total descriptors, but VkDescriptorSetLayout 0xf443490000000006[], which is bound, has 1 total descriptors..
++The Vulkan spec states: Each element of pDescriptorSets must have been allocated with a VkDescriptorSetLayout that matches (is the same as, or identically defined as) the VkDescriptorSetLayout at set n in layout, where n is the sum of firstSet and the index into pDescriptorSets (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkCmdBindDescriptorSets-pDescriptorSets-00358)
+
+# 2025-02-03 01:39:47.867344
++n
+
+# 2025-02-03 01:44:12.216081
++y
+
+# 2025-02-03 01:45:18.296130
++n
+
+# 2025-02-03 01:45:30.727152
++no error but i dont see anything being rendered
+
+# 2025-02-03 05:23:34.425029
++n
+
+# 2025-02-03 05:25:12.667321
++these need to be resritten for the say my mat4 vales are structured, or what ways could i add to my mat4 datatype to accecpt those matrices tests matrix.h
+
+# 2025-02-03 05:25:17.263103
++y
+
+# 2025-02-03 05:38:17.958366
++now we need to rewrite the tests in render_vulkan _v2
+
+# 2025-02-03 05:40:56.529246
++y
+
+# 2025-02-03 05:42:22.985595
++n
+
+# 2025-02-03 05:43:22.934605
++union mat4 has no member m. maybe matrix.cpp
+
+# 2025-02-03 05:43:27.406153
++y
+
+# 2025-02-03 05:46:00.881859
++union mat4 has no member m. maybe matrix.cpp
+
+# 2025-02-03 05:48:11.622337
++y
+
+# 2025-02-03 10:03:11.087809
++now im getting an error at `CreateSwapChain` in  if (vkCreateSwapchainKHR(zaynMem->vulkan.vkDevice, &createInfo, nullptr, &zaynMem->vulkan.vkSwapChain) != VK_SUCCESS) {
++     throw std::runtime_error("failed to create swap chain!");
++ }
++
+
+# 2025-02-03 10:04:18.373091
++y
+
+# 2025-02-03 10:06:54.142539
++now im getting an error at `CreateSwapChain` in  if (vkCreateSwapchainKHR(zaynMem->vulkan.vkDevice, &createInfo, nullptr, &zaynMem->vulkan.vkSwapChain) != VK_SUCCESS) {
++     throw std::runtime_error("failed to create swap chain!");
++ }
++render_vulkan_v2.cpp
+
+# 2025-02-03 10:06:57.976661
++y
+
+# 2025-02-03 10:08:42.292447
++now im getting an error at `CreateSwapChain` in  if (vkCreateSwapchainKHR(zaynMem->vulkan.vkDevice, &createInfo, nullptr, &zaynMem->vulkan.vkSwapChain) != VK_SUCCESS) {
++     throw std::runtime_error("failed to create swap chain!");
++ }
++render_vulkan_v2.cpp
+
+# 2025-02-03 10:08:45.274499
++y
+
+# 2025-02-03 10:24:07.556821
++fix
+
+# 2025-02-03 10:24:33.092034
++y
+
+# 2025-02-03 11:45:59.741882
++n
+
+# 2025-02-03 11:51:21.916865
++lse if (result != VK_SUCCESS) {
++        std::cerr << "Failed to create swap chain: " << result << std::endl;
++        throw std::runtime_error("Failed to create swap chain!");
++    }
+
+# 2025-02-03 11:54:10.485967
++y
+
+# 2025-02-03 12:39:16.370704
++n
+
+# 2025-02-03 12:40:54.825377
++i am getting this error when creating the swapchain, std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
++if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
++    std::cerr << "Validation layer error detected!" << std::endl;
++    #ifdef _WIN32
++        __debugbreak();
++    #else
++        raise(SIGTRAP);
++    #endif
++}
+
+# 2025-02-03 13:31:34.779182
++y
+
+# 2025-02-03 13:33:39.972800
++n
+
+# 2025-02-03 13:33:47.933936
++validation layer: Validation Error: [ UNASSIGNED-GeneralParameterError-RequiredHandle ] | MessageID = 0x8fdcb17b | vkCreateFramebuffer(): pCreateInfo->renderPass is VK_NULL_HANDLE.
++Validation layer error detected!
++Failed to create swap chain: -1000000001
++this is the error i get
+
+# 2025-02-03 13:43:15.801766
++any fixes for this error?
+
+# 2025-02-03 13:58:17.219187
++y
+
+# 2025-02-03 14:14:37.179832
++n
+
+# 2025-02-03 14:15:49.833476
++Available present modes:
++  2
++  3
++  1
++  0
++Available surface formats:
++  Format: 44 ColorSpace: 0
++  Format: 50 ColorSpace: 0
++  Format: 37 ColorSpace: 0
++  Format: 43 ColorSpace: 0
++  Format: 64 ColorSpace: 0
++
++=== Swapchain Surface Capabilities ===
++minImageCount: 2
++maxImageCount: 8
++currentExtent: 1000x800
++supportedUsageFlags: 0x9f
++supportedTransforms: 0x1
++
++Present mode: V-Sync?
++Present mode: Mailbox
++validation layer: Validation Error: [ UNASSIGNED-GeneralParameterError-RequiredHandle ] | MessageID = 0x8fdcb17b | vkCreateFramebuffer(): pCreateInfo->renderPass is VK_NULL_HANDLE.
++Validation layer error detected!
++Failed to create swap chain: -1000000001
++
+
+# 2025-02-03 14:20:16.230379
++any fixes for my errors?
+
+# 2025-02-03 14:24:50.083918
++y
+
+# 2025-02-03 14:26:54.602995
++n
+
+# 2025-02-03 14:31:05.676050
++can you provide a fix for my code, I am hitting an error when creatingswapchainkhr in createswapchain function. my terminal generates the following AllocateMemoryArena
++AllocateMemoryArena
++152343876
++zaynInit()
++VKVAL: windows_get_device_registry_files: GUID for 7 is not SoftwareComponent skipping
++VKVAL: windows_get_device_registry_files: GUID for 9 is not SoftwareComponent skipping
++VKVAL: Searching for ICD drivers named .\nvoglv64.dll
++VKVAL: Searching for ICD drivers named .\amdvlk64.dll
++VKVAL: Loading layer library D:\VulkanSDK\1.3.296.0\Bin\.\VkLayer_khronos_validation.dll
++VKVAL: Loading layer library C:\Program Files\Common Files\Twitch\Studio\Versions\0.117.8825.41942\.\TwitchNativeOverlay64.dll
++VKVAL: Loading layer library C:\ProgramData\obs-studio-hook\.\graphics-hook64.dll
++VKVAL: Loading layer library C:\WINDOWS\System32\DriverStore\FileRepository\u0400644.inf_amd64_9691c8ee1bbfcbb7\B399690\.\amdvlk64.dll
++VKVAL: Loading layer library C:\WINDOWS\System32\DriverStore\FileRepository\nv_dispig.inf_amd64_0afec3f2050014a0\.\nvoglv64.dll
++GPU: NVIDIA GeForce RTX 4090
++GPU: AMD Radeon(TM) Graphics
++Available present modes:
++  2
++  3
++  1
++  0
++Available surface formats:
++  Format: 44 ColorSpace: 0
++  Format: 50 ColorSpace: 0
++  Format: 37 ColorSpace: 0
++  Format: 43 ColorSpace: 0
++  Format: 64 ColorSpace: 0
++
++=== Swapchain Surface Capabilities ===
++minImageCount: 2
++maxImageCount: 8
++currentExtent: 1000x800
++supportedUsageFlags: 0x9f
++supportedTransforms: 0x1
++
++Present mode: V-Sync?
++Present mode: Mailbox
++VKVAL: Validation Error: [ UNASSIGNED-GeneralParameterError-RequiredHandle ] | MessageID = 0x8fdcb17b | vkCreateFramebuffer(): pCreateInfo->renderPass is VK_NULL_HANDLE.
++Validation layer error detected!
++RenderPass-related error detected!
++Failed to create swap chain: -1000000001 in src\render\render_vulkan_v2.cpp
+
+# 2025-02-03 14:31:06.904138
++y
+
+# 2025-02-03 14:40:46.076972
++n
+
+# 2025-02-03 14:42:54.723675
++can you fix this error? VKVAL: Validation Error: [ UNASSIGNED-GeneralParameterError-RequiredHandle ] | MessageID = 0x8fdcb17b | vkCreateFramebuffer(): pCreateInfo->renderPass is VK_NULL_HANDLE.
++Validation layer error detected!
++RenderPass-related error detected!
++Failed to create swap chain: -1000000001
+
+# 2025-02-03 14:46:30.095081
++y
+
+# 2025-02-03 14:56:23.056259
++what needs to be done to view this in renderdoc? i get an error that the vulkan can't do it. 
+
+# 2025-02-03 14:58:15.080176
++what needs to be done to view this application in renderdoc? i get an error that the vulkan can't do it. 
+
+# 2025-02-03 14:58:53.704662
++y
+
+# 2025-02-03 16:54:06.450929
++i am hitting the vkQueSubmit Throw error in submitcommandbuffer. Can you find a fix for it? it is in render_vulkan_v2.cpp
+
+# 2025-02-03 16:54:07.729337
++y
+
+# 2025-02-03 16:56:01.035028
++i am hitting the vkQueSubmit Throw error in submitcommandbuffer. for some reason it only hits after the render frames goes to 11. Can you find a fix for it? it is in render_vulkan_v2.cpp
+
+# 2025-02-03 16:56:02.170191
++y
+
+# 2025-02-03 16:57:33.841007
++n
+
+# 2025-02-03 16:58:16.625042
++after doing that change, i am getting this in the error 
++validation layer: Validation Error: [ VUID-vkQueueSubmit-fence-00064 ] Object 0: handle = 0x1427ba4bc50, type = VK_OBJECT_TYPE_QUEUE; Object 1: handle = 0x4f8a8b0000000046, type = VK_OBJECT_TYPE_FENCE; | MessageID = 0xbf76c98d | vkQueueSubmit():  (VkFence 0x4f8a8b0000000046[]) is already in use by another submission.
++The Vulkan spec states: If fence is not VK_NULL_HANDLE, fence must not be associated with any other queue command that has not yet completed execution on that queue (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkQueueSubmit-fence-00064)
++validation layer: Validation Error: [ VUID-vkQueueSubmit-fence-00064 ] Object 0: handle = 0x1427ba4bc50, type = VK_OBJECT_TYPE_QUEUE; Object 1: handle = 0x40b43c0000000049, type = VK_OBJECT_TYPE_FENCE; | MessageID = 0xbf76c98d | vkQueueSubmit():  (VkFence 0x40b43c0000000049[]) is already in use by another submission.
++The Vulkan spec states: If fence is not VK_NULL_HANDLE, fence must not be associated with any other queue command that has not yet completed execution on that queue (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkQueueSubmit-fence-00064)
++validation layer: Validation Error: [ VUID-vkQueueSubmit-fence-00064 ] Object 0: handle = 0x1427ba4bc50, type = VK_OBJECT_TYPE_QUEUE; Object 1: handle = 0x4f8a8b0000000046, type = VK_OBJECT_TYPE_FENCE; | MessageID = 0xbf76c98d | vkQueueSubmit():  (VkFence 0x4f8a8b0000000046[]) is already in use by another submission.
++The Vulkan spec states: If fence is not VK_NULL_HANDLE, fence must not be associated with any other queue command that has not yet completed execution on that queue (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkQueueSubmit-fence-00064)
++validation layer: Validation Error: [ VUID-vkQueueSubmit-fence-00064 ] Object 0: handle = 0x1427ba4bc50, type = VK_OBJECT_TYPE_QUEUE; Object 1: handle = 0x40b43c0000000049, type = VK_OBJECT_TYPE_FENCE; | MessageID = 0xbf76c98d | vkQueueSubmit():  (VkFence 0x40b43c0000000049[]) is already in use by another submission.
++The Vulkan spec states: If fence is not VK_NULL_HANDLE, fence must not be associated with any other queue command that has not yet completed execution on that queue (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkQueueSubmit-fence-00064)
++validation layer: Validation Error: [ VUID-vkQueueSubmit-fence-00064 ] Object 0: handle = 0x1427ba4bc50, type = VK_OBJECT_TYPE_QUEUE; Object 1: handle = 0x4f8a8b0000000046, type = VK_OBJECT_TYPE_FENCE; | MessageID = 0xbf76c98d | vkQueueSubmit():  (VkFence 0x4f8a8b0000000046[]) is already in use by another submission.
++The Vulkan spec states: If fence is not VK_NULL_HANDLE, fence must not be associated with any other queue command that has not yet completed execution on that queue (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkQueueSubmit-fence-00064)
++validation layer: Validation Error: [ VUID-vkQueueSubmit-fence-00064 ] Object 0: handle = 0x1427ba4bc50, type = VK_OBJECT_TYPE_QUEUE; Object 1: handle = 0x40b43c0000000049, type = VK_OBJECT_TYPE_FENCE; | MessageID = 0xbf76c98d | vkQueueSubmit():  (VkFence 0x40b43c0000000049[]) is already in use by another submission.
++The Vulkan spec states: If fence is not VK_NULL_HANDLE, fence must not be associated with any other queue command that has not yet completed execution on that queue (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkQueueSubmit-fence-00064)
++validation layer: Validation Error: [ VUID-vkQueueSubmit-fence-00064 ] Object 0: handle = 0x1427ba4bc50, type = VK_OBJECT_TYPE_QUEUE; Object 1: handle = 0x4f8a8b0000000046, type = VK_OBJECT_TYPE_FENCE; | MessageID = 0xbf76c98d | vkQueueSubmit():  (VkFence 0x4f8a8b0000000046[]) is already in use by another submission.
++The Vulkan spec states: If fence is not VK_NULL_HANDLE, fence must not be associated with any other queue command that has not yet completed execution on that queue (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkQueueSubmit-fence-00064)
++validation layer: Validation Error: [ VUID-vkQueueSubmit-fence-00064 ] Object 0: handle = 0x1427ba4bc50, type = VK_OBJECT_TYPE_QUEUE; Object 1: handle = 0x40b43c0000000049, type = VK_OBJECT_TYPE_FENCE; | MessageID = 0xbf76c98d | vkQueueSubmit():  (VkFence 0x40b43c0000000049[]) is already in use by another submission.
++The Vulkan spec states: If fence is not VK_NULL_HANDLE, fence must not be associated with any other queue command that has not yet completed execution on that queue (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkQueueSubmit-fence-00064)
++validation layer: Validation Error: [ VUID-vkQueueSubmit-fence-00064 ] Object 0: handle = 0x1427ba4bc50, type = VK_OBJECT_TYPE_QUEUE; Object 1: handle = 0x4f8a8b0000000046, type = VK_OBJECT_TYPE_FENCE; | MessageID = 0xbf76c98d | vkQueueSubmit():  (VkFence 0x4f8a8b0000000046[]) is already in use by another submission.
++The Vulkan spec states: If fence is not VK_NULL_HANDLE, fence must not be associated with any other queue command that has not yet completed execution on that queue (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkQueueSubmit-fence-00064)
++validation layer: Validation Error: [ VUID-vkQueueSubmit-fence-00064 ] Object 0: handle = 0x1427ba4bc50, type = VK_OBJECT_TYPE_QUEUE; Object 1: handle = 0x40b43c0000000049, type = VK_OBJECT_TYPE_FENCE; | MessageID = 0xbf76c98d | vkQueueSubmit():  (VkFence 0x40b43c0000000049[]) is already in use by another submission.
++The Vulkan spec states: If fence is not VK_NULL_HANDLE, fence must not be associated with any other queue command that has not yet completed execution on that queue (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkQueueSubmit-fence-00064) further more, it is still stopping at the same queuesubmitbut this time after the count_frame value is 45
+
+# 2025-02-03 16:58:18.321865
++n
+
+# 2025-02-03 16:59:28.489156
++y
+
+# 2025-02-03 17:31:05.366921
++n
+
+# 2025-02-03 17:31:08.191742
++/clear
+
+# 2025-02-03 17:33:55.636543
++i'm getting an error in my `SubmitCommandBuffers` where after 22 frames, it points to this in my autos vriables -		presentInfo	{sType=-858993460 pNext=0xcccccccccccccccc waitSemaphoreCount=3435973836 ...}	VkPresentInfoKHR
++		sType	-858993460	VkStructureType
++		pNext	0xcccccccccccccccc	const void *
++		waitSemaphoreCount	3435973836	unsigned int
+++		pWaitSemaphores	0xcccccccccccccccc {???}	VkSemaphore_T * const *
++		swapchainCount	3435973836	unsigned int
+++		pSwapchains	0xcccccccccccccccc {???}	VkSwapchainKHR_T * const *
+++		pImageIndices	0xcccccccccccccccc {???}	const unsigned int *
+++		pResults	0xcccccccccccccccc {???}	VkResult *
++
+
+# 2025-02-03 17:35:49.713689
++n
+
+# 2025-02-03 17:37:17.608578
++well it actually is throwing the error when it gets to vkQueueSubmit after 22 frames, the `submitInfo` variable has these values -		submitInfo	{sType=VK_STRUCTURE_TYPE_SUBMIT_INFO (4) pNext=0x0000000000000000 waitSemaphoreCount=1 ...}	VkSubmitInfo
++		sType	VK_STRUCTURE_TYPE_SUBMIT_INFO (4)	VkStructureType
++		pNext	0x0000000000000000	const void *
++		waitSemaphoreCount	1	unsigned int
+++		pWaitSemaphores	0x0000001e966fded8 {0x69eeaa0000000047 {...}}	VkSemaphore_T * const *
+++		pWaitDstStageMask	0x0000001e966fdef4 {1024}	const unsigned int *
++		commandBufferCount	1	unsigned int
+++		pCommandBuffers	0x0000001e966fe0e8 {0x0000020e0c6c5810 {...}}	VkCommandBuffer_T * const *
++		signalSemaphoreCount	1	unsigned int
+++		pSignalSemaphores	0x0000001e966fdf18 {0x7323f50000000048 {...}}	VkSemaphore_T * const *
++
+
+# 2025-02-03 17:40:12.697204
++well it actually is throwing the error when it gets to vkQueueSubmit after 22 frames, the `submitInfo` variable has these values -		submitInfo	{sType=VK_STRUCTURE_TYPE_SUBMIT_INFO (4) pNext=0x0000000000000000 waitSemaphoreCount=1 ...}	VkSubmitInfo
++		sType	VK_STRUCTURE_TYPE_SUBMIT_INFO (4)	VkStructureType
++		pNext	0x0000000000000000	const void *
++		waitSemaphoreCount	1	unsigned int
+++		pWaitSemaphores	0x0000001e966fded8 {0x69eeaa0000000047 {...}}	VkSemaphore_T * const *
+++		pWaitDstStageMask	0x0000001e966fdef4 {1024}	const unsigned int *
++		commandBufferCount	1	unsigned int
+++		pCommandBuffers	0x0000001e966fe0e8 {0x0000020e0c6c5810 {...}}	VkCommandBuffer_T * const *
++		signalSemaphoreCount	1	unsigned int
+++		pSignalSemaphores	0x0000001e966fdf18 {0x7323f50000000048 {...}}	VkSemaphore_T * const * can you find the error and fix it? 
++
+
+# 2025-02-03 17:41:55.314915
++y
+
+# 2025-02-03 17:43:47.105903
++n
+
+# 2025-02-03 17:45:15.083220
++i get this error 
++validation layer: Validation Error: [ UNASSIGNED-GeneralParameterError-RequiredHandle ] | MessageID = 0x8fdcb17b | vkCreateFramebuffer(): pCreateInfo->renderPass is VK_NULL_HANDLE.
++validation layer: Validation Error: [ VUID-VkFramebufferCreateInfo-renderPass-parameter ] Object 0: handle = 0x13d595cca30, type = VK_OBJECT_TYPE_INSTANCE; | MessageID = 0x98a2a472 | vkCreateFramebuffer(): pCreateInfo->renderPass Invalid VkRenderPass Object 0x0.
++The Vulkan spec states: renderPass must be a valid VkRenderPass handle (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-VkFramebufferCreateInfo-renderPass-parameter)
++validation layer: Validation Error: [ UNASSIGNED-GeneralParameterError-RequiredHandle ] | MessageID = 0x8fdcb17b | vkCreateFramebuffer(): pCreateInfo->renderPass is VK_NULL_HANDLE.
++validation layer: Validation Error: [ VUID-VkFramebufferCreateInfo-renderPass-parameter ] Object 0: handle = 0x13d595cca30, type = VK_OBJECT_TYPE_INSTANCE; | MessageID = 0x98a2a472 | vkCreateFramebuffer(): pCreateInfo->renderPass Invalid VkRenderPass Object 0x0.
++The Vulkan spec states: renderPass must be a valid VkRenderPass handle (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-VkFramebufferCreateInfo-renderPass-parameter)
++validation layer: Validation Error: [ UNASSIGNED-GeneralParameterError-RequiredHandle ] | MessageID = 0x8fdcb17b | vkCreateFramebuffer(): pCreateInfo->renderPass is VK_NULL_HANDLE.
++validation layer: Validation Error: [ VUID-VkFramebufferCreateInfo-renderPass-parameter ] Object 0: handle = 0x13d595cca30, type = VK_OBJECT_TYPE_INSTANCE; | MessageID = 0x98a2a472 | vkCreateFramebuffer(): pCreateInfo->renderPass Invalid VkRenderPass Object 0x0.
++The Vulkan spec states: renderPass must be a valid VkRenderPass handle (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-VkFramebufferCreateInfo-renderPass-parameter)
++Render pass created successfully.
++Texture created successfully
++validation layer: Validation Performance Warning: [ WARNING-Shader-OutputNotConsumed ] Object 0: handle = 0x59f7450000000038, type = VK_OBJECT_TYPE_SHADER_MODULE; | MessageID = 0xc81ad50e | vkCreateGraphicsPipelines(): pCreateInfos[0].pVertexInputState Vertex attribute at location 0 not consumed by vertex shader.
++validation layer: Validation Performance Warning: [ WARNING-Shader-OutputNotConsumed ] Object 0: handle = 0x59f7450000000038, type = VK_OBJECT_TYPE_SHADER_MODULE; | MessageID = 0xc81ad50e | vkCreateGraphicsPipelines(): pCreateInfos[0].pVertexInputState Vertex attribute at location 1 not consumed by vertex shader.
++validation layer: Validation Performance Warning: [ WARNING-Shader-OutputNotConsumed ] Object 0: handle = 0x59f7450000000038, type = VK_OBJECT_TYPE_SHADER_MODULE; | MessageID = 0xc81ad50e | vkCreateGraphicsPipelines(): pCreateInfos[0].pVertexInputState Vertex attribute at location 2 not consumed by vertex shader. and the submitcommandbuffer function crashes when it hits submit info in render_vulkan_v2.cpp
+
+# 2025-02-03 17:45:15.721159
++y
+
+# 2025-02-03 17:45:16.985432
++n
+
+# 2025-02-03 17:47:42.088232
++y
+
+# 2025-02-03 17:49:34.733942
++n
+
+# 2025-02-03 17:49:43.502649
++what does my shader code need to be? 
+
+# 2025-02-03 17:52:17.537724
++y
+
+# 2025-02-03 17:53:41.829684
++the code in my projcet runs but it doesnt seem to render anything, can you provide a fix for it? render_vulkan_v2.cpp
+
+# 2025-02-03 17:53:42.821419
++y
