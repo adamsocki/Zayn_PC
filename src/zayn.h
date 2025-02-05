@@ -199,7 +199,7 @@ struct ZaynMemory
 
 	RendererType rendererType;
 	Camera camera;
-	std::vector<GameObject> gameObjects;
+
 
 
 	Texture texture_001;
@@ -214,6 +214,9 @@ struct ZaynMemory
 
 	GameObject gameObject;
 	GameObject gameObject2;
+	std::vector<GameObject> gameObjects;
+
+	
 };
 
 void ZaynInit(ZaynMemory* zaynMemory);

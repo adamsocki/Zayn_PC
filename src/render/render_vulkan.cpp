@@ -2113,6 +2113,32 @@ void CreateMesh(ZaynMemory* zaynMem, const std::string modelPath, Mesh* mesh) {
 //    CreateIndexBuffer(zaynMem, zaynMem->vulkan.vkIndices, &zaynMem->vulkan.vkIndexBuffer, &zaynMem->vulkan.vkIndexBufferMemory);
 //}
 
+void RenderGameObject(ZaynMemory* zaynMem, GameObject* gameObject, VkCommandBuffer commandBuffer)
+{
+    uint32_t dynamicOffset = zaynMem->vulkan.vkCurrentFrame * sizeof(UniformBufferObject);
+
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, zaynMem->vulkan.vkGraphicsPipeline);
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, zaynMem->vulkan.vkPipelineLayout, 0, 1, &zaynMem->vulkan.vkDescriptorSets[zaynMem->vulkan.vkCurrentFrame], 0, nullptr);
+
+    // Push constants for the transform
+    ModelPushConstant pushConstant = {};
+    pushConstant.model_1 = TRS((V3(0.0f, 1.0f, -1.0f)), AxisAngle(V3(0.0f, 0.2f, 0.20f), 0.0f), V3(1.0f, 1.0f, 1.0f));
+
+
+    vkCmdPushConstants(commandBuffer, zaynMem->vulkan.vkPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ModelPushConstant), &pushConstant);
+
+    // Bind the vertex and index buffers
+    VkBuffer vertexBuffers[] = { gameObject->mesh->vertexBuffer };
+    VkDeviceSize offsets[] = { 0 };
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+    vkCmdBindIndexBuffer(commandBuffer, gameObject->mesh->indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+    //// Draw the mesh
+    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(gameObject->mesh->indices.size()), 1, 0, 0, 0);
+}
+
+
 void RenderGameObjects(ZaynMemory* zaynMem, VkCommandBuffer commandBuffer)
 {
     GameObject& gameObj = zaynMem->gameObject;
@@ -2152,12 +2178,20 @@ void CreateGameObject(ZaynMemory* zaynMem)
 void CreateGameObject_v1(ZaynMemory* zaynMem, GameObject* gameObj, mat4 transform, std::string objRelativePath, std::string textureRelativePath)
 {  
     gameObj->pushConstantData.model_1 = transform;
-
-    
     
     CreateTextureImage(zaynMem, gameObj->material->texture->mipLevels, &gameObj->material->texture->image, &gameObj->material->texture->memory, getTexturePath(textureRelativePath), VK_FORMAT_R8G8B8A8_SRGB);
     CreateTextureImageView(zaynMem, gameObj->material->texture->mipLevels, &gameObj->material->texture->image, &gameObj->material->texture->view);
     CreateTextureSampler(zaynMem, gameObj->material->texture->mipLevels, &gameObj->material->texture->sampler);
+    LoadModel(getModelPath(objRelativePath), &gameObj->mesh->vertices, &gameObj->mesh->indices);
+    CreateVertexBuffer(zaynMem, gameObj->mesh->vertices, &gameObj->mesh->vertexBuffer, &gameObj->mesh->vertexBufferMemory);
+    CreateIndexBuffer(zaynMem, gameObj->mesh->indices, &gameObj->mesh->indexBuffer, &gameObj->mesh->indexBufferMemory);
+}
+
+void CreateGameObject_v2(ZaynMemory* zaynMem, Texture* texture, GameObject* gameObj, mat4 transform, std::string objRelativePath)
+{
+    gameObj->material->texture;
+    gameObj->pushConstantData.model_1 = transform;
+
     LoadModel(getModelPath(objRelativePath), &gameObj->mesh->vertices, &gameObj->mesh->indices);
     CreateVertexBuffer(zaynMem, gameObj->mesh->vertices, &gameObj->mesh->vertexBuffer, &gameObj->mesh->vertexBufferMemory);
     CreateIndexBuffer(zaynMem, gameObj->mesh->indices, &gameObj->mesh->indexBuffer, &gameObj->mesh->indexBufferMemory);
@@ -2240,7 +2274,7 @@ void CleanUpSwapChain(ZaynMemory* zaynMem)
     {
         vkDestroyImageView(zaynMem->vulkan.vkDevice, zaynMem->vulkan.vkSwapChainImageViews[i], nullptr);
     }
-
+    
     vkDestroySwapchainKHR(zaynMem->vulkan.vkDevice, zaynMem->vulkan.vkSwapChain, nullptr);
 }
 
@@ -2519,9 +2553,6 @@ void RenderGameObject_v3(ZaynMemory* zaynMem, VkCommandBuffer commandBuffer)
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, zaynMem->vulkan.vkGraphicsPipeline);
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, zaynMem->vulkan.vkPipelineLayout, 0, 1, &zaynMem->vulkan.vkDescriptorSets[zaynMem->vulkan.vkCurrentFrame], 0, nullptr);
 
-
-
-
     vkCmdPushConstants(commandBuffer, zaynMem->vulkan.vkPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ModelPushConstant), &gameObj.pushConstantData);
 
     // Bind the vertex and index buffers
@@ -2550,13 +2581,16 @@ void UpdateRender_Vulkan(ZaynMemory* zaynMem)
    
        BeginSwapChainRenderPass(zaynMem, zaynMem->vulkan.vkCommandBuffers[zaynMem->vulkan.vkCurrentFrame]);
    
-   
+       for (int i = 0; i < 5; i++)
+       {
+            //Render
+       }
        
        //RenderEntity_notYetEntity(zaynMem, zaynMem->vulkan.vkCommandBuffers[zaynMem->vulkan.vkCurrentFrame], &zaynMem->vulkan.vkGraphicsPipeline, &zaynMem->vulkan.vkPipelineLayout, zaynMem->vulkan.vkDescriptorSets, &zaynMem->vulkan.vkVertexBuffer, &zaynMem->vulkan.vkIndexBuffer, zaynMem->vulkan.vkIndices, &pushConstantData1);
        //RenderGameObjects(zaynMem, zaynMem->vulkan.vkCommandBuffers[zaynMem->vulkan.vkCurrentFrame]);
-      // RenderGameObjects_v2(zaynMem, zaynMem->vulkan.vkCommandBuffers[zaynMem->vulkan.vkCurrentFrame]);
+       RenderGameObjects_v2(zaynMem, zaynMem->vulkan.vkCommandBuffers[zaynMem->vulkan.vkCurrentFrame]);
        RenderGameObject_v3(zaynMem, zaynMem->vulkan.vkCommandBuffers[zaynMem->vulkan.vkCurrentFrame]);
-   
+    
    }
    
    EndSwapChainRenderPass(zaynMem, zaynMem->vulkan.vkCommandBuffers[zaynMem->vulkan.vkCurrentFrame]);

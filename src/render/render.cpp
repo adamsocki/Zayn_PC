@@ -70,13 +70,20 @@ void InitRender(ZaynMemory* zaynMem)
 	CreateTexture_v1(zaynMem, &textureInfo, &zaynMem->texture_002);
 
 	// NEW TEXZTUER CREATION TEST
+	MaterialCreateInfo matInfo_new = {};
+	//matInfo_new.path = ""
+
+	//CreateMaterial_v1(zaynMem, &matInfo_new, );
 
 
-	mat4 transform1 = TRS((V3(10.0f, 11.0f, -11.0f)), AxisAngle(V3(0.0f, 0.2f, 0.20f), 0.0f), V3(1.0f, 1.0f, 1.0f));
+	mat4 transform1 = TRS((V3(0.0f, 1.0f, 0.0f)), AxisAngle(V3(0.0f, 0.2f, 0.20f), 0.0f), V3(1.0f, 1.0f, 1.0f));
+	mat4 transform2 = TRS((V3(1.0f, 0.0f, 0.0f)), AxisAngle(V3(0.0f, 0.2f, 0.20f), 0.0f), V3(1.0f, 1.0f, 1.0f));
 	CreateGameObject_v1(zaynMem, &zaynMem->gameObject, transform1, "viking_room.obj", "viking_room.png");
 
-	mat4 transform2 = TRS((V3(1.0f, 1.0f, -11.0f)), AxisAngle(V3(0.0f, 0.2f, 0.20f), 0.0f), V3(1.0f, 1.0f, 1.0f));
-	CreateGameObject_v1(zaynMem, &zaynMem->gameObject2, transform2, "viking_room.obj", "viking_room.png");
+	CreateGameObject_v2(zaynMem, &zaynMem->texture_002, &zaynMem->gameObject2, transform2, "viking_room.obj");
+
+	//mat4 transform2 = TRS((V3(1.0f, 1.0f, -11.0f)), AxisAngle(V3(0.0f, 0.2f, 0.20f), 0.0f), V3(1.0f, 1.0f, 1.0f));
+	//CreateGameObject_v1(zaynMem, &zaynMem->gameObject2, transform2, "viking_room.obj", "viking_room.png");
 
 	//mat4 transform
 
