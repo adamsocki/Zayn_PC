@@ -187,6 +187,7 @@ void CreateTexture_v1(ZaynMemory* zaynMem, TextureCreateInfo* info, Texture* tex
 
 void CreateGameObject_v1(ZaynMemory* zaynMem, GameObject* gameObj, mat4 transform, std::string objRelativePath, std::string textureRelativePath);  
 void CreateGameObject_v2(ZaynMemory* zaynMem, Texture* texture, GameObject* gameObj, mat4 transform, std::string objRelativePath);
+void CreateMaterial_v1(ZaynMemory* zaynMem, MaterialCreateInfo* info, Material_old* outMaterial);
 
 
 void InitRender_Vulkan(ZaynMemory* zaynMem);

@@ -206,14 +206,19 @@ struct ZaynMemory
 	Material_old material_001;
 
 	Texture texture_002;
+	Texture texture_003;
 
 
 	MaterialSystem *materialSystem;
 
 	Mesh mesh_001;
+	Mesh mesh_002;
 
 	GameObject gameObject;
 	GameObject gameObject2;
+	GameObject gameObject3; 
+
+
 	std::vector<GameObject> gameObjects;
 
 	

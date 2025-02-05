@@ -2090,6 +2090,22 @@ void CreateMaterial(ZaynMemory* zaynMem, MaterialCreateInfo* info, Material_old*
     }
 }
 
+void CreateMaterial_v1(ZaynMemory* zaynMem, MaterialCreateInfo* info, Material_old* outMaterial)
+{
+    memset(outMaterial, 0, sizeof(Material_old));
+    outMaterial->type = info->type;
+    memcpy(outMaterial->color, info->color, sizeof(float) * 4);
+    outMaterial->roughness = info->roughness;
+    outMaterial->metallic = info->metallic;
+    outMaterial->texture = info->texture;
+
+    outMaterial->descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        AllocateMaterialDescriptorSet(zaynMem, outMaterial, i);
+    }
+
+}
+
 void CreateMesh(ZaynMemory* zaynMem, const std::string modelPath, Mesh* mesh) {
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
@@ -2141,28 +2157,47 @@ void RenderGameObject(ZaynMemory* zaynMem, GameObject* gameObject, VkCommandBuff
 
 void RenderGameObjects(ZaynMemory* zaynMem, VkCommandBuffer commandBuffer)
 {
-    GameObject& gameObj = zaynMem->gameObject;
-    uint32_t dynamicOffset = zaynMem->vulkan.vkCurrentFrame * sizeof(UniformBufferObject);
+    //uint32_t dynamicOffset = zaynMem->vulkan.vkCurrentFrame * sizeof(UniformBufferObject);
 
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, zaynMem->vulkan.vkGraphicsPipeline);
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, zaynMem->vulkan.vkPipelineLayout, 0, 1, &zaynMem->vulkan.vkDescriptorSets[zaynMem->vulkan.vkCurrentFrame], 0, nullptr);
     
-    // Push constants for the transform
-    ModelPushConstant pushConstant = {};
-    pushConstant.model_1 = TRS((V3(0.0f, 1.0f, -1.0f)), AxisAngle(V3(0.0f, 0.2f, 0.20f), 0.0f), V3(1.0f, 1.0f, 1.0f));
 
 
-    vkCmdPushConstants(commandBuffer, zaynMem->vulkan.vkPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ModelPushConstant), &pushConstant);
+    for (int i = 0; i < zaynMem->gameObjects.size(); i++)
+    {
+        GameObject& gameObj = zaynMem->gameObject;
 
-    // Bind the vertex and index buffers
-    VkBuffer vertexBuffers[] = { zaynMem->mesh_001.vertexBuffer };
-    VkDeviceSize offsets[] = { 0 };
-    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, zaynMem->vulkan.vkGraphicsPipeline);
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, zaynMem->vulkan.vkPipelineLayout, 0, 1, &zaynMem->vulkan.vkDescriptorSets[zaynMem->vulkan.vkCurrentFrame], 0, nullptr);
 
-    vkCmdBindIndexBuffer(commandBuffer, zaynMem->mesh_001.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
-    // Draw the mesh
-    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(zaynMem->mesh_001.indices.size()), 1, 0, 0, 0);
+        // Push constants for the transform
+        ModelPushConstant pushConstant = {};
+        pushConstant.model_1 = TRS((V3(0.0f, 1.0f, -1.0f)), AxisAngle(V3(0.0f, 0.2f, 0.20f), 0.0f), V3(1.0f, 1.0f, 1.0f));
+
+        vkCmdPushConstants(commandBuffer, zaynMem->vulkan.vkPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ModelPushConstant), &pushConstant);
+
+        // Bind the vertex and index buffers
+        VkBuffer vertexBuffers[] = { zaynMem->mesh_001.vertexBuffer };
+        VkDeviceSize offsets[] = { 0 };
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+        vkCmdBindIndexBuffer(commandBuffer, zaynMem->mesh_001.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+        // Draw the mesh
+        vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(zaynMem->mesh_001.indices.size()), 1, 0, 0, 0);
+
+    }
+
+
+
+
+   
+
+
+
+
+
+    
 }
     
 void CreateGameObject(ZaynMemory* zaynMem)
@@ -2547,11 +2582,11 @@ void RenderGameObjects_v2(ZaynMemory* zaynMem, VkCommandBuffer commandBuffer)
 
 void RenderGameObject_v3(ZaynMemory* zaynMem, VkCommandBuffer commandBuffer)
 {
-    GameObject& gameObj = zaynMem->gameObject2;
+    GameObject& gameObj = zaynMem->gameObject3;
     uint32_t dynamicOffset = zaynMem->vulkan.vkCurrentFrame * sizeof(UniformBufferObject);
 
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, zaynMem->vulkan.vkGraphicsPipeline);
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, zaynMem->vulkan.vkPipelineLayout, 0, 1, &zaynMem->vulkan.vkDescriptorSets[zaynMem->vulkan.vkCurrentFrame], 0, nullptr);
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, zaynMem->vulkan.vkPipelineLayout, 0, 1, &gameObj.material->descriptorSets[zaynMem->vulkan.vkCurrentFrame], 0, nullptr);
 
     vkCmdPushConstants(commandBuffer, zaynMem->vulkan.vkPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ModelPushConstant), &gameObj.pushConstantData);
 
@@ -2565,6 +2600,8 @@ void RenderGameObject_v3(ZaynMemory* zaynMem, VkCommandBuffer commandBuffer)
     // Draw the mesh
     vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(gameObj.mesh->indices.size()), 1, 0, 0, 0);
 }
+
+
 
 vec3 posModel1 = V3(0.0f, 0.0f, -0.0f);
 
