@@ -147,7 +147,10 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Descriptors.h" />
+    <ClInclude Include="Engine.h" />
     <ClInclude Include="Material.h" />
+    <ClInclude Include="MaterialSystem.h" />
     <ClInclude Include="src\camera.h" />
     <ClInclude Include="src\constants.h" />
     <ClInclude Include="src\data_types.h" />
@@ -169,7 +172,10 @@
     <ClInclude Include="src\zayn.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Descriptors.cpp" />
+    <ClCompile Include="Engine.cpp" />
     <ClCompile Include="Material.cpp" />
+    <ClCompile Include="MaterialSystem.cpp" />
     <ClCompile Include="src\camera.cpp" />
     <ClCompile Include="src\input.cpp" />
     <ClCompile Include="src\math\matrix.cpp" />

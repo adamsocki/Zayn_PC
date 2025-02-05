@@ -12,7 +12,7 @@
 
 
 #if VULKAN
-const int MAX_FRAMES_IN_FLIGHT = 2;
+//const int MAX_FRAMES_IN_FLIGHT = 2;
 
 #define STB_IMAGE_IMPLEMENTATION
 //#include "include/stb_image.h"
@@ -20,6 +20,7 @@ const int MAX_FRAMES_IN_FLIGHT = 2;
 #define GLM_ENABLE_EXPERIMENTAL
 
 #endif
+
 
 
 extern ZaynMemory* Zayn;

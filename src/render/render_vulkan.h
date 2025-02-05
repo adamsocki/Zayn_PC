@@ -15,7 +15,7 @@ struct ZaynMemory;
 struct TextureCreateInfo;
 struct Texture;
 struct MaterialCreateInfo;
-struct Material;
+struct Material_old;
 struct GameObject;
 //struct MyVulkanData;
 
@@ -182,9 +182,11 @@ struct QueueFamilyIndices
 
 std::string getTexturePath(const std::string& filename);
 void CreateTexture(ZaynMemory* zaynMem, TextureCreateInfo* info, Texture* outTexture);
-void CreateMaterial(ZaynMemory* zaynMem, MaterialCreateInfo* info, Material* outMaterial);
+void CreateMaterial(ZaynMemory* zaynMem, MaterialCreateInfo* info, Material_old* outMaterial);
+void CreateTexture_v1(ZaynMemory* zaynMem, TextureCreateInfo* info, Texture* texture);
 
 void CreateGameObject_v1(ZaynMemory* zaynMem, GameObject* gameObj, mat4 transform, std::string objRelativePath, std::string textureRelativePath);  
+
 
 void InitRender_Vulkan(ZaynMemory* zaynMem);
 void UpdateRender_Vulkan(ZaynMemory* zaynMem);

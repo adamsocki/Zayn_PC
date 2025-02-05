@@ -38,6 +38,7 @@ struct WindowsPlatform
 };
 
 #include "globals.h" 
+#include "../Engine.h"
 
 
 ZaynMemory* Zayn = NULL;
@@ -46,6 +47,17 @@ InputManager* Input = NULL;
 
 int main()
 {
+    
+    
+ /*   Zayn1::Engine engine = {};
+    engine.Run();*/
+    
+
+
+
+
+
+    
     char* sdkPath = nullptr;
     size_t len = 0;
 

@@ -1,16 +1,17 @@
-//#pragma once
-//class Material
-//{
-//
-//
-//private:
-//
-//
-//public:
-//
-//	Material();
-//
-//	~Material();
-//
-//};
-//
+#pragma once
+class Material
+{
+
+
+private:
+
+
+public:
+
+	Material();
+
+	~Material();
+
+
+};
+

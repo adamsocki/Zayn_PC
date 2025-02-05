@@ -20,3 +20,4 @@ enum RendererType
 
 void InitRender(ZaynMemory* zaynMem);
 void UpdateRender(ZaynMemory* zaynMem);
+

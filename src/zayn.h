@@ -18,9 +18,11 @@
 
 #include <vulkan/vulkan.h>
 #include <vector>
+#include "../MaterialSystem.h"
 
 //struct RendererType;
 //struct GameObject;
+
 
 struct Vertex;
 
@@ -113,9 +115,9 @@ struct MyVulkanData
 struct TextureCreateInfo
 {
 	std::string path;
-	VkFormat format;
+	VkFormat format = VK_FORMAT_R8G8B8A8_SRGB;
 	bool generateMipmaps;
-	VkFilter filter;
+	//VkFilter filter;
 	VkSamplerAddressMode addressMode;
 };
 
@@ -145,7 +147,7 @@ struct MaterialCreateInfo
 	float metallic;
 };
 
-struct Material
+struct Material_old
 {
 	MaterialType type;
 	std::vector<VkDescriptorSet> descriptorSets;
@@ -170,7 +172,7 @@ struct Mesh
 
 struct GameObject
 {
-	Material* material;
+	Material_old* material;
 	Mesh* mesh;
 	glm::mat4 transform;
 	
@@ -201,11 +203,17 @@ struct ZaynMemory
 
 
 	Texture texture_001;
-	Material material_001;
+	Material_old material_001;
+
+	Texture texture_002;
+
+
+	MaterialSystem *materialSystem;
 
 	Mesh mesh_001;
 
 	GameObject gameObject;
+	GameObject gameObject2;
 };
 
 void ZaynInit(ZaynMemory* zaynMemory);
