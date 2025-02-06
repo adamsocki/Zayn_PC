@@ -66,6 +66,11 @@ inline quaternion FromEulerAngles(real32 heading, real32 attitude, real32 bank) 
     return result;
 }
 
+inline real32 ToRadians(real32 degrees) {
+    return degrees * (_PI / 180.0f);
+}
+
+
 inline quaternion FromEulerAngles(vec3 euler) {
     return FromEulerAngles(euler.y, euler.z, euler.x);
 }

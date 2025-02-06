@@ -204,6 +204,8 @@ struct ZaynMemory
 
 	Texture texture_001;
 	Material_old material_001;
+	Material_old material_002;
+	Material_old material_003;
 
 	Texture texture_002;
 	Texture texture_003;
