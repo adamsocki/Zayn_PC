@@ -139,9 +139,40 @@ void ZaynEngine::InitIMGUI(ZaynMemory* zaynMem)
     //// init_info.CheckVkResultFn = check_vk_result;
     ImGui_ImplVulkan_Init(&init_info);
 
-    VkCommandBuffer command_buffer = BeginSingleTimeCommands(zaynMem);
+    // Create dedicated command pool/buffer for font upload
+    VkCommandPoolCreateInfo pool_info = {};
+    pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    pool_info.queueFamilyIndex = zaynMem->vulkan.vkQueueFamilyCount;
+    vkCreateCommandPool(zaynMem->vulkan.vkDevice, &pool_info, nullptr, &zaynMem->myIMGUI.imGuiFontCommandPool);
+
+    VkCommandBufferAllocateInfo alloc_info = {};
+    alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    alloc_info.commandPool = zaynMem->myIMGUI.imGuiFontCommandPool;
+    alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    alloc_info.commandBufferCount = 1;
+    vkAllocateCommandBuffers(zaynMem->vulkan.vkDevice, &alloc_info, &zaynMem->myIMGUI.imGuiFontCommandBuffer);
+
+    // Begin command buffer
+    VkCommandBufferBeginInfo begin_info = {};
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    begin_info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    vkBeginCommandBuffer(zaynMem->myIMGUI.imGuiFontCommandBuffer, &begin_info);
+
+    // Create font texture with our dedicated command buffer
     ImGui_ImplVulkan_CreateFontsTexture();
-    EndSingleTimeCommands(zaynMem, command_buffer);
+
+    // End and submit
+    vkEndCommandBuffer(zaynMem->myIMGUI.imGuiFontCommandBuffer);
+    VkSubmitInfo submit_info = {};
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &zaynMem->myIMGUI.imGuiFontCommandBuffer;
+    vkQueueSubmit(zaynMem->vulkan.vkGraphicsQueue, 1, &submit_info, VK_NULL_HANDLE);
+    vkQueueWaitIdle(zaynMem->vulkan.vkGraphicsQueue);
+
+    // Cleanup
+    vkFreeCommandBuffers(zaynMem->vulkan.vkDevice, zaynMem->myIMGUI.imGuiFontCommandPool, 1, &zaynMem->myIMGUI.imGuiFontCommandBuffer);
+    vkDestroyCommandPool(zaynMem->vulkan.vkDevice, zaynMem->myIMGUI.imGuiFontCommandPool, nullptr);
 
 }
 
