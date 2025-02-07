@@ -20,6 +20,9 @@
 #include <vector>
 #include "../MaterialSystem.h"
 
+#include "../assets/fonts/stb_font_consolas_24_latin1.inl"
+#include "../external/imgui/imgui.h"
+
 //struct RendererType;
 //struct GameObject;
 
@@ -71,9 +74,6 @@ struct MyVulkanData
 	VkImageView vkDepthImageView;
 
 	uint32_t vkQueueFamilyCount = -1;
-
-
-
 
 
 
@@ -179,10 +179,21 @@ struct GameObject
     ModelPushConstant pushConstantData;
 };
 
+struct MyIMGUI
+{
+	VkDescriptorPool imGuiDescriptorPool;
+	VkRenderPass imGuiRenderPass;
+	std::vector<VkCommandBuffer> imGuiCommandBuffers;
+	std::vector<VkFramebuffer> imGuiFrameBuffers;
+	VkCommandPool imGuiCommandPool;
+};
+
 struct ZaynMemory 
 {
 	vec2 test_vec_Zayn;
 	uint64 testuint;
+
+	MyIMGUI myIMGUI;
 
 	MemoryArena permanentMemArena;
 	MemoryArena frameMemArena;
@@ -200,6 +211,7 @@ struct ZaynMemory
 	RendererType rendererType;
 	Camera camera;
 
+	ImVector<const char*> extensions;
 
 
 	Texture texture_001;

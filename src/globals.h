@@ -9,6 +9,8 @@
 
 #define WINDOWS 1
 
+#define IMGUI 1
+
 
 
 #if VULKAN
@@ -19,7 +21,9 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #define GLM_ENABLE_EXPERIMENTAL
 
-#endif
+#endif  
+
+//static ImGui_ImplVulkanH_Window g_MainWindowData;
 
 
 

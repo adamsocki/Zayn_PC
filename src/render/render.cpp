@@ -3,6 +3,7 @@
 #include "render.h"
 
 #include "render_vulkan.h"
+#include "../My_IMGUI.h"
 #include "../zayn.h"
 #include "../globals.h"
 #include "../../Material.h"
@@ -94,10 +95,9 @@ void InitRender(ZaynMemory* zaynMem)
 
 	mat4 transform1 = TRS((V3(0.0f, 1.0f, 0.0f)), AxisAngle(V3(0.0f, 0.2f, 0.20f), 0.0f), V3(1.0f, 1.0f, 1.0f));
 	mat4 transform2 = TRS((V3(1.0f, 0.0f, 0.0f)), AxisAngle(V3(0.0f, 0.0f, 0.20f), 0.0f), V3(1.0f, 1.0f, 1.0f));
-	mat4 transform3 = TRS((V3(1.0f, 00.0f, 0.0f)), AxisAngle(V3(1.0f, 0.0f, 0.0f), ToRadians( 90.0f)), V3(1.0f, 1.0f, 1.0f));
+	mat4 transform3 = TRS((V3(1.0f, 00.0f, 0.0f)), AxisAngle(V3(1.0f, 0.0f, 0.0f), ToRadians(90.0f)), V3(1.0f, 1.0f, 1.0f));
 
 
-	//CreateGameObject_v1(zaynMem, &zaynMem->gameObject, transform1, "viking_room.obj", "viking_room.png");
 
 	CreateGameObject_v2(zaynMem, &zaynMem->texture_002, &zaynMem->gameObject2, transform2, "viking_room.obj");
 	CreateGameObject_v2(zaynMem, &zaynMem->texture_003, &zaynMem->gameObject3, transform3, "ground_01.obj");
@@ -112,7 +112,7 @@ void InitRender(ZaynMemory* zaynMem)
 #endif
 
 
-
+	
 
 
 }
@@ -123,10 +123,13 @@ void InitRender(ZaynMemory* zaynMem)
 
 void UpdateRender(ZaynMemory* zaynMem)
 {	
+
 	switch (zaynMem->rendererType)
 	{
+
 		case RENDERER_VULKAN:
 		{
+
 			UpdateRender_Vulkan(zaynMem);
 			break;
 		}

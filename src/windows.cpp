@@ -5,7 +5,7 @@
 
 
 #define WINDOWS 1
-
+//#define IMGUI 1
 
 #include <windows.h>
 
@@ -17,7 +17,18 @@
 #include "data_types.h"
 #include "math/my_math.h"
 
+//#include "../external/imgui/imgui.h"
+//#include "../external/imgui/backends/imgui_impl_glfw.h"
+//#include "../external/imgui/backends/imgui_impl_vulkan.h"
+
+//#include "imgui.h"
+//#include "backends/imgui_impl_glfw.h"
+//#include "backends/imgui_impl_vulkan.h"  
+
+
+
 #include "zayn.h"
+#include "My_IMGUI.h"
 
 
 #include "my_memory.h"
@@ -54,7 +65,8 @@ int main()
     
 
 
-
+    
+    
 
 
     
@@ -153,6 +165,10 @@ int main()
     cam->front = V3(-1, 0, 0);
     cam->up = V3(0, 0, 1);
     cam->right = V3(0, -1, 0);
+
+#if IMGUI
+    ZaynEngine::InitIMGUI(Zayn);
+#endif
    
     while (!glfwWindowShouldClose(Zayn->window) && platform.running)
     {
@@ -182,8 +198,10 @@ int main()
         InputUpdate(Zayn, &Zayn->inputManager);
 
         InputCameraMovement(Zayn);
-        ZaynUpdateAndRender(Zayn);
+       // ZaynEngine::RenderIMGUI(Zayn);r
 
+        ZaynUpdateAndRender(Zayn);
+        
         glfwSwapBuffers(Zayn->window);
 
         ClearInputManager(inputManager);

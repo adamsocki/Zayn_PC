@@ -21,3 +21,197 @@
 
 # 2025-02-05 19:38:56.583885
 +can you help be with setting up a level editor with imgui?
+
+# 2025-02-05 19:48:25.996263
++ do
+
+# 2025-02-05 19:48:32.856543
++y
+
+# 2025-02-06 11:25:53.253234
++validation layer: Validation Error: [ VUID-vkCmdPipelineBarrier-dstStageMask-06462 ] Object 0: handle = 0x29b7da8f590, type = VK_OBJECT_TYPE_COMMAND_BUFFER; | MessageID = 0x7d560045 | vkCmdPipelineBarrier(): dstStageMask (VK_PIPELINE_STAGE_TRANSFER_BIT) is not compatible with the queue family properties (VkQueueFlags(0)) of this command buffer.
++The Vulkan spec states: Any pipeline stage included in dstStageMask must be supported by the capabilities of the queue family specified by the queueFamilyIndex member of the VkCommandPoolCreateInfo structure that was used to create the VkCommandPool that commandBuffer was allocated from, as specified in the table of supported pipeline stages (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkCmdPipelineBarrier-dstStageMask-06462)
++validation layer: Validation Error: [ VUID-vkCmdPipelineBarrier-commandBuffer-cmdpool ] Object 0: handle = 0x29b7da8f590, type = VK_OBJECT_TYPE_COMMAND_BUFFER; Object 1: handle = 0x4256c1000000005d, type = VK_OBJECT_TYPE_COMMAND_POOL; | MessageID = 0x2796abdf | vkCmdPipelineBarrier():  called in VkCommandBuffer 0x29b7da8f590[] which was allocated from the VkCommandPool 0x4256c1000000005d[] which was created with queueFamilyIndex 6 which contains the capability flags VkQueueFlags(0) (but requires VK_QUEUE_GRAPHICS_BIT or VK_QUEUE_COMPUTE_BIT or VK_QUEUE_TRANSFER_BIT or VK_QUEUE_VIDEO_DECODE_BIT_KHR or VK_QUEUE_VIDEO_ENCODE_BIT_KHR).
++The Vulkan spec states: The VkCommandPool that commandBuffer was allocated from must support transfer, graphics, compute, decode, or encode operations (https://vulkan.lunarg.com/doc/view/1.3.296.0/windows/1.3-extensions/vkspec.html#VUID-vkCmdPipelineBarrier-commandBuffer-cmdpool)
++
+
+# 2025-02-06 11:25:55.011627
++n
+
+# 2025-02-06 11:51:46.155431
++y
+
+# 2025-02-06 12:09:31.972225
++n
+
+# 2025-02-06 12:10:45.204145
++i dont think that is the issue, when i initialize my imgui code, the error happens at     ImGui_ImplVulkan_CreateFontsTexture() in here 
++
++void ZaynEngine::InitIMGUI(ZaynMemory* zaynMem)
++{
++
++
++    VkDescriptorPoolCreateInfo poolInfo{};
++    // ImGui Descriptor pool
++    VkDescriptorPoolSize pool_sizes[] = {
++        {VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
++        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
++        {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
++        {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000},
++        {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000},
++        {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000},
++        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
++        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000},
++        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000},
++        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000},
++        {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000} };
++    poolInfo = {};
++    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
++    poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
++    poolInfo.maxSets = 1;
++    poolInfo.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
++    poolInfo.pPoolSizes = pool_sizes;
++    if (vkCreateDescriptorPool(zaynMem->vulkan.vkDevice, &poolInfo, nullptr,
++        &zaynMem->myIMGUI.imGuiDescriptorPool) != VK_SUCCESS)
++    {
++        throw std::runtime_error("failed to create imgui descriptor pool!");
++    }
++
++    {
++        // Attachment
++        VkAttachmentDescription colorAttachment = {};
++        colorAttachment.format = zaynMem->vulkan.vkSwapChainImageFormat;
++        colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT; // No MSAA
++        colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
++        colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
++        colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
++        colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
++        colorAttachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
++        colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
++
++        // Color VkAttachmentReference our render pass needs.
++        VkAttachmentReference colorAttachmentRef = {};
++        colorAttachmentRef.attachment = 0;
++        colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
++
++        // subpass
++        VkSubpassDescription subpass = {};
++        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
++        subpass.colorAttachmentCount = 1;
++        subpass.pColorAttachments = &colorAttachmentRef;
++
++        // synchronization and dependency
++        VkSubpassDependency dependency = {};
++        dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
++        dependency.dstSubpass = 0;
++        dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
++        dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
++        dependency.srcAccessMask = 0; // or VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
++        dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
++
++        VkRenderPassCreateInfo info = {};
++        info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
++        info.attachmentCount = 1;
++        info.pAttachments = &colorAttachment;
++        info.subpassCount = 1;
++        info.pSubpasses = &subpass;
++        info.dependencyCount = 1;
++        info.pDependencies = &dependency;
++        if (vkCreateRenderPass(zaynMem->vulkan.vkDevice, &info, nullptr, &zaynMem->myIMGUI.imGuiRenderPass) !=
++            VK_SUCCESS) {
++            throw std::runtime_error("Could not create Dear ImGui's render pass");
++        }
++    }
++
++    // Setup Dear ImGui context
++    IMGUI_CHECKVERSION();
++    ImGui::CreateContext();
++    ImGuiIO& io = ImGui::GetIO();
++    (void)io;
++
++    // enable mouse cursor for ImGui
++    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
++    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;  // Enable Gamepad Controls
++    io.WantCaptureMouse = true;
++    // io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;     // Enable Docking
++    // io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;   // Enable Multi-Viewport / Platform Windows
++
++    // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
++    // io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
++
++    // Setup Dear ImGui style
++    ImGui::StyleColorsDark();
++    // ImGui::StyleColorsClassic();
++
++    // Setup Platform/Renderer bindings
++    ImGui_ImplGlfw_InitForVulkan(zaynMem->window, true);
++    ImGui_ImplVulkan_InitInfo init_info = {};
++    init_info.Instance = zaynMem->vulkan.vkInstance;
++    init_info.PhysicalDevice = zaynMem->vulkan.vkPhysicalDevice;
++    init_info.Device = zaynMem->vulkan.vkDevice;
++    init_info.QueueFamily = zaynMem->vulkan.vkQueueFamilyCount;
++    init_info.Queue = zaynMem->vulkan.vkGraphicsQueue;
++    init_info.PipelineCache = VK_NULL_HANDLE;
++    init_info.DescriptorPool = zaynMem->myIMGUI.imGuiDescriptorPool;
++    init_info.Allocator = nullptr;
++    init_info.RenderPass = zaynMem->myIMGUI.imGuiRenderPass;
++
++    {
++        // Already sized to the minImageCount + 1 &&  < MaxImageCount
++        std::uint32_t imageCount = static_cast<uint32_t>(zaynMem->vulkan.vkSwapChainImages.size());
++        init_info.MinImageCount = imageCount;
++        init_info.ImageCount = imageCount;
++    }
++    // init_info.MinImageCount = g_MinImageCount;
++    // init_info.ImageCount = wd->ImageCount;
++
++    //// init_info.CheckVkResultFn = check_vk_result;
++    ImGui_ImplVulkan_Init(&init_info);
++
++    //VkCommandBuffer command_buffer = BeginSingleTimeCommands(zaynMem);
++    ImGui_ImplVulkan_CreateFontsTexture();
++    //EndSingleTimeCommands(zaynMem, command_buffer);
++
++}
++
+
+# 2025-02-06 12:12:16.106642
++/gi
+
+# 2025-02-06 12:12:23.372825
++/git add .
+
+# 2025-02-06 12:13:33.392359
++i hit an error at the command buffer here when i run ImGui_ImplVulkan_CreateFontsTexture in My_IMGUI.cpp
+
+# 2025-02-06 12:13:34.472428
++y
+
+# 2025-02-06 12:14:58.476062
++can you find the error?
+
+# 2025-02-06 12:16:22.627950
++i hit an error at the command buffer here when i run ImGui_ImplVulkan_CreateFontsTexture in My_IMGUI.cpp
+
+# 2025-02-06 12:16:23.290077
++y
+
+# 2025-02-06 12:36:15.985279
++n
+
+# 2025-02-06 12:36:51.918601
++Exception thrown at 0x00007FF938F524C6 (nvoglv64.dll) in Zayn_PC.exe: 0xC0000005: Access violation reading location 0x0000000000000140. for   VkImageMemoryBarrier copy_barrier[1] = {};
++  copy_barrier[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
++  copy_barrier[0].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
++  copy_barrier[0].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
++  copy_barrier[0].newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
++  copy_barrier[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
++  copy_barrier[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
++  copy_barrier[0].image = bd->FontImage;
++  copy_barrier[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
++  copy_barrier[0].subresourceRange.levelCount = 1;
++  copy_barrier[0].subresourceRange.layerCount = 1;
++  vkCmdPipelineBarrier(bd->FontCommandBuffer, VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, copy_barri in imgui_impl_vulkan.cpp
+
+# 2025-02-06 12:36:53.170041
++y

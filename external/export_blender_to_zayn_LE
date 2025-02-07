@@ -1,0 +1,79 @@
+import bpy
+import os
+import json
+
+
+# Export path to /Users/socki/dev/zayn/data/levelFiles/blender
+# export_path = os.path.join(os.path.dirname(bpy.data.filepath), "scene_data.json")
+
+export_path = "/Users/socki/dev/zayn/data/levelFiles/blender/scene_data.json"
+export_path_obj = "/Users/socki/dev/zayn/data/levelFiles/blender/"
+# export_path = os.path.join(os.path.dirname(bpy.data.filepath), "scene_data.json")
+
+def get_mesh_data(obj):
+    mesh_data = {
+        "name": obj.data.name,
+        "vertices": [],
+        "faces": []
+    }
+    # Extract vertices
+    for vertex in obj.data.vertices:
+        mesh_data["vertices"].append([vertex.co.x, vertex.co.y, vertex.co.z])
+    
+    # Extract faces (indices)
+    for face in obj.data.polygons:
+        mesh_data["faces"].append([vertex_index for vertex_index in face.vertices])
+    
+    return mesh_data
+
+scene_data = {
+    "meshes": {},
+    "objects": []
+}
+
+for obj in bpy.context.selected_objects:
+    if obj.type == 'MESH':
+        print("Exporting object: ", obj.name)
+        mesh_name = obj.data.name
+        if mesh_name not in scene_data["meshes"]:
+            scene_data["meshes"][mesh_name] = get_mesh_data(obj)
+            print("Exporting mesh: ", mesh_name)
+
+        # Select only the current object for export
+        bpy.ops.object.select_all(action='DESELECT')
+        obj.select_set(True)
+
+        obj_file_name = "aaa" + ".obj"
+        obj_file_path = os.path.join(export_path_obj, obj_file_name)
+        
+        
+        bpy.context.view_layer.objects.active = obj
+        bpy.ops.export_scene.obj(filepath=obj_file_path, use_selection=True)
+        
+        # Store the object's transformation data and OBJ file reference
+        object_data = {
+            "name": obj.name,
+            "obj_file": obj_file_name,
+            "location": [obj.location.x, obj.location.y, obj.location.z],
+            "rotation": [obj.rotation_euler.x, obj.rotation_euler.y, obj.rotation_euler.z],
+            "scale": [obj.scale.x, obj.scale.y, obj.scale.z]
+        }
+        scene_data["objects"].append(object_data)
+        # # Store the object's transformation data
+        # object_data = {
+        #     "name": obj.name,
+        #     "mesh": mesh_name,
+        #     "location": [obj.location.x, obj.location.y, obj.location.z],
+        #     "rotation": [obj.rotation_euler.x, obj.rotation_euler.y, obj.rotation_euler.z],
+        #     "scale": [obj.scale.x, obj.scale.y, obj.scale.z],
+        #     "is_instance": True if obj.data.users > 1 else False
+        # }
+        # scene_data["objects"].append(object_data)
+        print("Exporting object: ", obj.name)
+        print("object_data: ", object_data)
+        print("object_location: ", obj.location)
+
+
+with open(export_path, 'w') as json_file:
+    json.dump(scene_data, json_file, indent=4)
+    print("Export completed! JSON file saved at:", export_path)
