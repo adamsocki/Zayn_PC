@@ -15,6 +15,7 @@
 #include "../../external/imgui/imgui.h"
 #include "../../external/imgui/backends/imgui_impl_vulkan.h"
 #include "../../external/imgui/backends/imgui_impl_glfw.h"
+#include "../My_IMGUI.h"
 
 
 #ifdef NDEBUG
@@ -2095,17 +2096,22 @@ void CreateMaterial(ZaynMemory* zaynMem, MaterialCreateInfo* info, Material_old*
 
 void CreateMaterial_v1(ZaynMemory* zaynMem, MaterialCreateInfo* info, Material_old* outMaterial)
 {
+
     memset(outMaterial, 0, sizeof(Material_old));
     outMaterial->type = info->type;
     memcpy(outMaterial->color, info->color, sizeof(float) * 4);
     outMaterial->roughness = info->roughness;
     outMaterial->metallic = info->metallic;
     outMaterial->texture = info->texture;
+    outMaterial->name = info->name;
 
     outMaterial->descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         AllocateMaterialDescriptorSet(zaynMem, outMaterial, i);
     }
+
+
+
 
 }
 
@@ -2223,12 +2229,13 @@ void CreateGameObject_v1(ZaynMemory* zaynMem, GameObject* gameObj, mat4 transfor
     CreateIndexBuffer(zaynMem, gameObj->mesh->indices, &gameObj->mesh->indexBuffer, &gameObj->mesh->indexBufferMemory);
 }
 
-void CreateGameObject_v2(ZaynMemory* zaynMem, Texture* texture, GameObject* gameObj, mat4 transform, std::string objRelativePath)
+void CreateGameObject_v2(ZaynMemory* zaynMem, Texture* texture, GameObject* gameObj, mat4 transform, std::string objRelativePath, std::string name)
 {
     
 
     gameObj->material->texture;
     gameObj->pushConstantData.model_1 = transform;
+    gameObj->name = name;
 
     LoadModel(getModelPath(objRelativePath), &gameObj->mesh->vertices, &gameObj->mesh->indices);
     CreateVertexBuffer(zaynMem, gameObj->mesh->vertices, &gameObj->mesh->vertexBuffer, &gameObj->mesh->vertexBufferMemory);
@@ -2619,34 +2626,6 @@ void DoIMGUI()
 {
     // Recording ImGui Command Buffer
     {
-        //ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-        //VkCommandBufferBeginInfo info = {};
-        //info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        //info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-        //VkResult err =
-        //    vkBeginCommandBuffer(Zayn->myIMGUI.imGuiCommandBuffers[Zayn->vulkan.vkCurrentFrame], &info);
-        //check_vk_result(err);
-
-        //// Render pass
-        //{
-        //    VkClearValue clearValue = {};
-        //    clearValue.color = { {0.0f, 0.0f, 0.0f, 1.0f} };
-        //    // Copy passed clear color
-        //    memcpy(&clearValue.color.float32[0], &clear_color, 4 * sizeof(float));
-
-        //    VkRenderPassBeginInfo info = {};
-        //    info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        //    info.renderPass = Zayn->myIMGUI.imGuiRenderPass;
-        //    info.framebuffer = Zayn->myIMGUI.imGuiFrameBuffers[Zayn->vulkan.vkCurrentImageIndex];
-        //    // swapChainFramebuffers[currentFrame];
-        //    info.renderArea.extent.width = Zayn->vulkan.vkSwapChainExtent.width;
-        //    info.renderArea.extent.height = Zayn->vulkan.vkSwapChainExtent.height;
-        //    info.clearValueCount = 1;
-        //    info.pClearValues = &clearValue;
-        //    vkCmdBeginRenderPass(Zayn->myIMGUI.imGuiCommandBuffers[Zayn->vulkan.vkCurrentFrame], &info,
-        //        VK_SUBPASS_CONTENTS_INLINE);
-        //}
-
         // ImGui Render command
         ImGui_ImplVulkan_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -2656,8 +2635,10 @@ void DoIMGUI()
         //some imgui UI to test
         ImGui::ShowDemoWindow();
         ImGui::Render();
-       /* ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(),Zayn->myIMGUI.imGuiCommandBuffers[Zayn->vulkan.vkCurrentFrame], Zayn->vulkan.vkGraphicsPipeline);*/
+
         ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+
+
         VkCommandBufferBeginInfo info = {};
         info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
@@ -2688,20 +2669,12 @@ void DoIMGUI()
         // ImGui Render command
         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), Zayn->myIMGUI.imGuiCommandBuffers[Zayn->vulkan.vkCurrentFrame]);
 
-
-
         // Submit command buffer
         vkCmdEndRenderPass(Zayn->myIMGUI.imGuiCommandBuffers[Zayn->vulkan.vkCurrentFrame]);
         {
             err = vkEndCommandBuffer(Zayn->myIMGUI.imGuiCommandBuffers[Zayn->vulkan.vkCurrentFrame]);
             check_vk_result(err);
         }
-        // Submit command buffer
-     /*   vkCmdEndRenderPass(Zayn->myIMGUI.imGuiCommandBuffers[Zayn->vulkan.vkCurrentFrame]);
-        {
-            err = vkEndCommandBuffer(Zayn->myIMGUI.imGuiCommandBuffers[Zayn->vulkan.vkCurrentFrame]);
-            check_vk_result(err);
-        }*/
     }
 
 }
@@ -2732,9 +2705,11 @@ void UpdateRender_Vulkan(ZaynMemory* zaynMem)
        //RenderGameObject_v3(zaynMem, zaynMem->vulkan.vkCommandBuffers[zaynMem->vulkan.vkCurrentFrame]);
     
    }
-   DoIMGUI();
 
 #if IMGUI
+   ZaynEngine::RenderIMGUI(zaynMem);
+
+
 #endif
    
    EndSwapChainRenderPass(zaynMem, zaynMem->vulkan.vkCommandBuffers[zaynMem->vulkan.vkCurrentFrame]);

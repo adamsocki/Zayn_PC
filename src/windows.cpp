@@ -5,7 +5,6 @@
 
 
 #define WINDOWS 1
-//#define IMGUI 1
 
 #include <windows.h>
 
@@ -16,6 +15,7 @@
 
 #include "data_types.h"
 #include "math/my_math.h"
+#include "globals.h"
 
 //#include "../external/imgui/imgui.h"
 //#include "../external/imgui/backends/imgui_impl_glfw.h"
@@ -198,7 +198,7 @@ int main()
         InputUpdate(Zayn, &Zayn->inputManager);
 
         InputCameraMovement(Zayn);
-       // ZaynEngine::RenderIMGUI(Zayn);r
+       // ZaynEngine::RenderIMGUI(Zayn);
 
         ZaynUpdateAndRender(Zayn);
         

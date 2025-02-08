@@ -82,15 +82,19 @@ void InitRender(ZaynMemory* zaynMem)
 	MaterialCreateInfo matInfo_new1 = {};
 	matInfo_new1.type = MATERIAL_PBR;
 	matInfo_new1.texture = &zaynMem->texture_002;
+	matInfo_new1.name = "room";
 	CreateMaterial_v1(zaynMem, &matInfo_new1, &zaynMem->material_002);
 	// NEW TEXZTUER CREATION TEST
 
 	MaterialCreateInfo matInfo_new2 = {};
 	matInfo_new2.type = MATERIAL_PBR;
 	matInfo_new2.texture = &zaynMem->texture_003;
+	matInfo_new2.name = "stone ground 001";
 	CreateMaterial_v1(zaynMem, &matInfo_new2, &zaynMem->material_003);
 
 
+
+	
 
 
 	mat4 transform1 = TRS((V3(0.0f, 1.0f, 0.0f)), AxisAngle(V3(0.0f, 0.2f, 0.20f), 0.0f), V3(1.0f, 1.0f, 1.0f));
@@ -99,8 +103,8 @@ void InitRender(ZaynMemory* zaynMem)
 
 
 
-	CreateGameObject_v2(zaynMem, &zaynMem->texture_002, &zaynMem->gameObject2, transform2, "viking_room.obj");
-	CreateGameObject_v2(zaynMem, &zaynMem->texture_003, &zaynMem->gameObject3, transform3, "ground_01.obj");
+	CreateGameObject_v2(zaynMem, &zaynMem->texture_002, &zaynMem->gameObject2, transform2, "viking_room.obj", "room");
+	CreateGameObject_v2(zaynMem, &zaynMem->texture_003, &zaynMem->gameObject3, transform3, "ground_01.obj", "floor");
 
 	//mat4 transform2 = TRS((V3(1.0f, 1.0f, -11.0f)), AxisAngle(V3(0.0f, 0.2f, 0.20f), 0.0f), V3(1.0f, 1.0f, 1.0f));
 	//CreateGameObject_v1(zaynMem, &zaynMem->gameObject2, transform2, "viking_room.obj", "viking_room.png");

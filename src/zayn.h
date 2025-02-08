@@ -22,6 +22,7 @@
 
 #include "../assets/fonts/stb_font_consolas_24_latin1.inl"
 #include "../external/imgui/imgui.h"
+#include "../LevelEditor.h"
 
 //struct RendererType;
 //struct GameObject;
@@ -141,7 +142,8 @@ enum MaterialType
 struct MaterialCreateInfo
 {
 	MaterialType type = MATERIAL_PBR;
-	Texture* texture;
+	Texture* texture; 
+	std::string name;
 	float color[4];
 	float roughness;
 	float metallic;
@@ -151,7 +153,8 @@ struct Material_old
 {
 	MaterialType type;
 	std::vector<VkDescriptorSet> descriptorSets;
-	Texture* texture;
+	Texture* texture; 
+	std::string name;
 	float color[4];
 	float metallic;
 	float roughness;
@@ -175,6 +178,8 @@ struct GameObject
 	Material_old* material;
 	Mesh* mesh;
 	glm::mat4 transform;
+
+	std::string name;
 	
     ModelPushConstant pushConstantData;
 };
@@ -187,6 +192,8 @@ struct MyIMGUI
 	std::vector<VkFramebuffer> imGuiFrameBuffers;
 	VkCommandPool imGuiCommandPool;
 };
+
+
 
 struct ZaynMemory 
 {
@@ -219,6 +226,9 @@ struct ZaynMemory
 	Material_old material_002;
 	Material_old material_003;
 
+
+	std::vector<Material_old> materials;
+
 	Texture texture_002;
 	Texture texture_003;
 
@@ -234,6 +244,8 @@ struct ZaynMemory
 
 
 	std::vector<GameObject> gameObjects;
+
+	LevelEditor le;
 
 	
 };

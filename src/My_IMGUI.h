@@ -19,6 +19,7 @@ namespace ZaynEngine
 
 
 	void InitIMGUI(ZaynMemory* zaynMem);
+	void LevelEditorIMGUI(ZaynMemory* zaynMem);
 	void RenderIMGUI(ZaynMemory* zaynMem);
 
 }
