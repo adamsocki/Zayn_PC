@@ -237,6 +237,7 @@ struct ZaynMemory
 
 	Mesh mesh_001;
 	Mesh mesh_002;
+	std::vector<Mesh> meshes;
 
 	GameObject gameObject;
 	GameObject gameObject2;
