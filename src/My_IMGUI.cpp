@@ -171,6 +171,46 @@ void ZaynEngine::LevelEditorIMGUI(ZaynMemory* zaynMem)
         }
         ImGui::EndChild();
 
+        ImGui::SameLine();
+        ImGui::BeginGroup();
+        {
+            ImGui::BeginChild("Object Properties", ImVec2(300, 300), true);
+            
+            if (zaynMem->le.selectedSceneObjectIndex >= 0 && 
+                zaynMem->le.selectedSceneObjectIndex < zaynMem->gameObjects.size())
+            {
+                GameObject& selectedObj = zaynMem->gameObjects[zaynMem->le.selectedSceneObjectIndex];
+                
+                ImGui::SeparatorText("Transform");
+                ImGui::DragFloat3("Position", glm::value_ptr(selectedObj.transform[3]), 0.1f);
+                
+                static glm::vec3 rotation;
+                ImGui::DragFloat3("Rotation", glm::value_ptr(rotation), 1.0f, -180.0f, 180.0f);
+                
+                static glm::vec3 scale{1.0f};
+                ImGui::DragFloat3("Scale", glm::value_ptr(scale), 0.1f);
+                
+                selectedObj.transform = glm::mat4(1.0f);
+                selectedObj.transform = glm::translate(selectedObj.transform, glm::vec3(selectedObj.transform[3]));
+                selectedObj.transform = glm::rotate(selectedObj.transform, glm::radians(rotation.x), glm::vec3(1,0,0));
+                
+                ImGui::SeparatorText("Material");
+                ImGui::Text("Current: %s", selectedObj.material->name.c_str());
+                if (ImGui::Button("Change Material"))
+                {
+                    zaynMem->le.selectedNewMaterialIndex = zaynMem->le.selectedSceneObjectIndex;
+                    zaynMem->le.materialSelected = true;
+                }
+            }
+            else
+            {
+                ImGui::Text("Select an object to edit properties");
+            }
+            
+            ImGui::EndChild();
+        }
+        ImGui::EndGroup();
+
         ImGui::SeparatorText("New Object Maker");
 
         ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 1.0f);
@@ -195,18 +235,45 @@ void ZaynEngine::LevelEditorIMGUI(ZaynMemory* zaynMem)
                 zaynMem->le.materialSelected = true;
             }
         }
-          
 
-        
+        CheckCanAddObject(zaynMem);
+
+        ImGui::Separator();
+        ImGui::Text("Create New Object");
+        static char newObjectName[128] = "New Object";
+
+        ImGui::InputText("Name", newObjectName, IM_ARRAYSIZE(newObjectName));
+        ImGui::BeginDisabled(!zaynMem->le.canAddObject);
+        if (ImGui::Button("Add Object") && zaynMem->le.materialSelected)
+        {
+            GameObject newObj;
+            newObj.name = newObjectName;
+            newObj.material = &zaynMem->materials[zaynMem->le.selectedNewMaterialIndex];
+            newObj.transform = glm::mat4(1.0f);
+            newObj.mesh = zaynMem->meshes.empty() ? nullptr : &zaynMem->meshes[0];
+            
+            zaynMem->gameObjects.push_back(newObj);
+            
+            memset(newObjectName, 0, sizeof(newObjectName));
+            strcpy(newObjectName, "New Object");
+        }
+        ImGui::EndDisabled();
 
         if (ImGui::BeginMenuBar())
         {
-            
-
-
-
-            
-
+            if (ImGui::BeginMenu("File"))
+            {
+                if (ImGui::MenuItem("Save Level"))
+                {
+                    // TODO: Implement save functionality
+                }
+                if (ImGui::MenuItem("Load Level"))
+                {
+                    // TODO: Implement load functionality
+                }
+                ImGui::EndMenu();
+            }
+            ImGui::EndMenuBar();
         }
 
         ImGui::PopStyleVar();
@@ -278,6 +345,15 @@ void ZaynEngine::RenderIMGUI(ZaynMemory* zaynMem)
 
         //some imgui UI to test
         ImGui::ShowDemoWindow();
+        
+        ImGui::Begin("Debug Tools");
+        if (ImGui::CollapsingHeader("Render Stats"))
+        {
+            ImGui::Text("Objects: %d", zaynMem->gameObjects.size());
+            ImGui::Text("Materials: %d", zaynMem->materials.size());
+        }
+        ImGui::End();
+        
         LevelEditorIMGUI(zaynMem);
         ImGui::Render();
 
