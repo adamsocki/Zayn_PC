@@ -173,59 +173,39 @@ void ZaynEngine::LevelEditorIMGUI(ZaynMemory* zaynMem)
 
         ImGui::SeparatorText("New Object Maker");
 
-        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 5.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 1.0f);
         //ImGui::BeginChild("ChildR", ImVec2(0, 260), ImGuiChildFlags_Borders);
 
 
+        for (int i = 0; i < zaynMem->materials.size(); i++)
+        {
+            bool isSelected;
+            if (zaynMem->le.selectedNewMaterialIndex == i)
+            {
+                isSelected = true;
+            }
+            else
+            {
+                isSelected = false;
+            }
+
+            if (ImGui::Selectable(zaynMem->materials[i].name.c_str(), isSelected))
+            {
+                zaynMem->le.selectedNewMaterialIndex = i;
+                zaynMem->le.materialSelected = true;
+            }
+        }
+          
+
+        
 
         if (ImGui::BeginMenuBar())
         {
-            for (int i = 0; i < zaynMem->materials.size(); i++)
-            {
-                bool isSelected;
-                if (zaynMem->le.selectedNewMaterialIndex == i)
-                {
-                    isSelected = true;
-                }
-                else
-                {
-                    isSelected = false;
-                }
-
-                if (ImGui::Selectable(zaynMem->materials[i].name.c_str(), isSelected))
-                {
-                    zaynMem->le.selectedNewMaterialIndex = i;
-                    zaynMem->le.materialSelected = true;
-                }
-            }
+            
 
 
 
-            CheckCanAddObject(zaynMem);
-
-
-
-            ImGui::BeginDisabled(!zaynMem->le.canAddObject);
-            if (ImGui::Button("Create New Object"))
-            {
-                GameObject newObj;
-                newObj.name = "Object num " + std::to_string(zaynMem->gameObjects.size());
-                newObj.pushConstantData.model_1 = Identity4();
-                zaynMem->gameObjects.push_back(newObj);
-            }
-            ImGui::EndDisabled();
-
-            /*ImGui::PushItemWidth(225);
-            static float pos[3];
-            ImGui::InputFloat3("position", pos);
-
-            static float rot[3];
-            ImGui::InputFloat3("rotation", rot);
-
-            static float scale[3];
-            ImGui::InputFloat3("scale", scale);
-            ImGui::PopItemWidth();
-            ImGui::EndChild();*/
+            
 
         }
 
