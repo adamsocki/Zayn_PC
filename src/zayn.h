@@ -151,13 +151,14 @@ struct MaterialCreateInfo
 
 struct Material_old
 {
+	std::string name;
 	MaterialType type;
 	std::vector<VkDescriptorSet> descriptorSets;
 	Texture* texture; 
-	std::string name;
 	float color[4];
 	float metallic;
 	float roughness;
+	bool isInitialized = false;
 };
 
 struct Mesh
