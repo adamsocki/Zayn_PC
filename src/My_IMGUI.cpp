@@ -5,6 +5,8 @@
 //#include <imgui_impl_vulkan.h>
 //#include <imgui_impl_glfw.h>
 #include <stdexcept>
+#include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 
 
@@ -213,7 +215,7 @@ void ZaynEngine::LevelEditorIMGUI(ZaynMemory* zaynMem)
 
         ImGui::SeparatorText("New Object Maker");
 
-        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 1.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 10.0f);
         //ImGui::BeginChild("ChildR", ImVec2(0, 260), ImGuiChildFlags_Borders);
 
 
@@ -250,12 +252,12 @@ void ZaynEngine::LevelEditorIMGUI(ZaynMemory* zaynMem)
             newObj.name = newObjectName;
             newObj.material = &zaynMem->materials[zaynMem->le.selectedNewMaterialIndex];
             newObj.transform = glm::mat4(1.0f);
-            newObj.mesh = zaynMem->meshes.empty() ? nullptr : &zaynMem->meshes[0];
+            newObj.mesh = &zaynMem->mesh_001;
             
             zaynMem->gameObjects.push_back(newObj);
             
             memset(newObjectName, 0, sizeof(newObjectName));
-            strcpy(newObjectName, "New Object");
+            strcpy_s(newObjectName, "New Object");
         }
         ImGui::EndDisabled();
 

@@ -2079,27 +2079,46 @@ bool AllocateMaterialDescriptorSet(ZaynMemory* zaynMem, Material_old* material, 
     return true;
 }  
 
-void CreateMaterial(ZaynMemory* zaynMem, MaterialCreateInfo* info, Material_old* outMaterial)
+Material_old* CreateMaterial(ZaynMemory* zaynMem, const MaterialCreateInfo& info)
 {
-    memset(outMaterial, 0, sizeof(Material_old));
-    outMaterial->type = info->type;
-    memcpy(outMaterial->color, info->color, sizeof(float) * 4);
-    outMaterial->roughness = info->roughness;
-    outMaterial->metallic = info->metallic;
-    outMaterial->texture = info->texture;
+    Material_old newMaterial{};
+    newMaterial.name = info.name;
+    newMaterial.type = info.type;
+    newMaterial.texture = info.texture;
+    memcpy(newMaterial.color, info.color, sizeof(float) * 4);
+    newMaterial.metallic = info.metallic;
+    newMaterial.roughness = info.roughness;
 
-    outMaterial->descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        AllocateMaterialDescriptorSet(zaynMem, outMaterial, i);
+    // Allocate descriptor sets for all frames
+    newMaterial.descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        if (!AllocateMaterialDescriptorSet(zaynMem, &newMaterial, i)) {
+            fprintf(stderr, "Failed to allocate descriptor set for material %s\n", info.name.c_str());
+            return nullptr;
+        }
     }
+
+    zaynMem->materials.push_back(newMaterial);
+    return &zaynMem->materials.back();
+}
+
+void AssignMaterial(GameObject* obj, Material_old* material)
+{
+    if (!material->isInitialized) {
+        fprintf(stderr, "Material %s not properly initialized\n", material->name.c_str());
+        return;
+    }
+
+    obj->material = material;
 }
 
 void CreateMaterial_v1(ZaynMemory* zaynMem, MaterialCreateInfo* info, Material_old* outMaterial)
 {
 
-    memset(outMaterial, 0, sizeof(Material_old));
+    //memset(outMaterial, 0, sizeof(Material_old));
     outMaterial->type = info->type;
-    memcpy(outMaterial->color, info->color, sizeof(float) * 4);
+    //outMaterial->color = info->color;
+    //memcpy(outMaterial->color, info->color, sizeof(float) * 4);
     outMaterial->roughness = info->roughness;
     outMaterial->metallic = info->metallic;
     outMaterial->texture = info->texture;
@@ -2111,7 +2130,7 @@ void CreateMaterial_v1(ZaynMemory* zaynMem, MaterialCreateInfo* info, Material_o
     }
 
 
-
+    zaynMem->materials.push_back(*outMaterial);
 
 }
 
@@ -2229,13 +2248,15 @@ void CreateGameObject_v1(ZaynMemory* zaynMem, GameObject* gameObj, mat4 transfor
     CreateIndexBuffer(zaynMem, gameObj->mesh->indices, &gameObj->mesh->indexBuffer, &gameObj->mesh->indexBufferMemory);
 }
 
-void CreateGameObject_v2(ZaynMemory* zaynMem, Texture* texture, GameObject* gameObj, mat4 transform, std::string objRelativePath, std::string name)
+void CreateGameObject_v2(ZaynMemory* zaynMem, Mesh* mesh, Material_old* mat, Texture* texture, GameObject* gameObj, mat4 transform, std::string objRelativePath, std::string name)
 {
     
 
     gameObj->material->texture;
     gameObj->pushConstantData.model_1 = transform;
     gameObj->name = name;
+    gameObj->mesh = mesh;
+    gameObj->material = mat;
 
     LoadModel(getModelPath(objRelativePath), &gameObj->mesh->vertices, &gameObj->mesh->indices);
     CreateVertexBuffer(zaynMem, gameObj->mesh->vertices, &gameObj->mesh->vertexBuffer, &gameObj->mesh->vertexBufferMemory);

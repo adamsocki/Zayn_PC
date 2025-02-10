@@ -215,3 +215,96 @@
 
 # 2025-02-06 12:36:53.170041
 +y
+
+# 2025-02-08 20:14:23.575221
++/add src\My_IMGUI.cpp
+
+# 2025-02-08 20:14:48.509645
++/add src\render\render.cpp
+
+# 2025-02-08 20:14:56.713429
++/add src\zayn.cpp
+
+# 2025-02-08 20:15:43.327876
++working on a non oop cpp game engine, trying to make a level editor using imgui, can you tell me how to implement that? here some code so far.
+
+# 2025-02-08 20:18:10.288268
++y
+
+# 2025-02-08 20:28:23.418052
++currently, i just create a material as a new struct in my zaynMemory, what is a better way to create new materials dynamically and then attach them ?  render_vulkan.cpp
+
+# 2025-02-08 20:28:25.170236
++y
+
+# 2025-02-08 20:28:43.626568
++/clear
+
+# 2025-02-08 20:28:47.762159
++currently, i just create a material as a new struct in my zaynMemory, what is a better way to create new materials dynamically and then attach them ?  render_vulkan.cpp
+
+# 2025-02-08 20:29:49.254599
++/add src\render\render_vulkan.cpp
+
+# 2025-02-08 20:29:55.070107
++/add src\My_IMGUI.cpp
+
+# 2025-02-08 20:30:06.817717
++/add src\zayn.h
+
+# 2025-02-08 20:30:32.320180
++render.cpp
+
+# 2025-02-08 20:30:35.822721
++n
+
+# 2025-02-08 20:30:59.759752
++/add src\zayn.h
+
+# 2025-02-08 20:31:03.284838
++/add src\My_IMGUI.cpp
+
+# 2025-02-08 20:31:07.379987
++/add src\render\render_vulkan.cpp
+
+# 2025-02-08 20:31:15.802888
++/add render.cpp
+
+# 2025-02-08 20:31:19.354781
++n
+
+# 2025-02-08 20:31:25.053071
++/add src\render\render.cpp
+
+# 2025-02-08 20:31:40.974929
++currently, i just create a material as a new struct in my zaynMemory, what is a better way to create new materials dynamically and then attach them ?  render_vulkan.cpp
+
+# 2025-02-08 20:33:53.723936
++/add src\zayn.h
+
+# 2025-02-08 20:33:56.456667
++currently, i just create a material as a new struct in my zaynMemory, what is a better way to create new materials dynamically and then attach them ?  render_vulkan.cpp
+
+# 2025-02-08 20:33:58.712137
++n
+
+# 2025-02-08 20:43:26.632578
++/add src\zayn.h
+
+# 2025-02-08 20:43:28.960795
++currently, i just create a material as a new struct in my zaynMemory, what is a better way to create new materials dynamically and then attach them ?  render_vulkan.cpp
+
+# 2025-02-08 20:43:32.081346
++n
+
+# 2025-02-09 17:07:20.358192
++y
+
+# 2025-02-09 17:07:43.121042
++render_vulkan.cpp
+
+# 2025-02-09 17:07:53.038363
++/editor
+
+# 2025-02-09 17:08:50.675171
++src\render\render_vulkan.cpp
